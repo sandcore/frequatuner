@@ -1,5 +1,4 @@
-use esp_idf_sys::vApplicationSleep;
-use pitch_detector::{core::NoteName, note::{detect_note, NoteDetectionResult}};
+use pitch_detector::{core::NoteName, note::NoteDetectionResult};
 
 /*
 Based on a NoteDetectionResult from pitch_detector crate. One future refactor might be to keep an enum of interface elements so their types can be passed around easily and checked, 

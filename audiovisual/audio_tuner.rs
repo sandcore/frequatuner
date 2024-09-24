@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 
 use pitch_detection::detector::{mcleod::McLeodDetector, PitchDetector};
-use pitch_detector::note::{detect_note, NoteDetectionResult};
+use pitch_detector::note::NoteDetectionResult;
 use fundsp::hacker32::*;
 
 // Every 1024 samples a pitch detection loop is started. The DSP filter (low and highpass) is configured at a 64 sample buffer. Probably a good idea to keep the amount of samples used in a
@@ -96,7 +96,6 @@ impl RawBuffer {
         // Used BufferArrays before integrating all parts of EqTuner project together, and that worked before. But in the integrated project
         // BufferArrays cause a panic without a source location, guess stack related.
         let mut dsp_buff = BufferVec::new(1);
-        let mut dsp_buff_amped = BufferVec::new(1);
         let mut dsp_lowpassed_values = BufferVec::new(1);
         let mut dsp_highpassed_values = BufferVec::new(1);
         
@@ -108,7 +107,6 @@ impl RawBuffer {
             dsp_buff.buffer_mut().set_f32(0, dspbuffer_counter, gained_sample);
 
             if dspbuffer_counter == max_dsp_buffer_idx {
-                //self.low_freq_pre_amp.process( max_dsp_buffer, &dsp_buff.buffer_ref(), &mut dsp_buff_amped.buffer_mut());
                 self.lowpass_filter.process(max_dsp_buffer, &dsp_buff.buffer_ref(), &mut dsp_lowpassed_values.buffer_mut());
                 self.highpass_filter.process(max_dsp_buffer, &dsp_lowpassed_values.buffer_ref(), &mut dsp_highpassed_values.buffer_mut());
 

@@ -117,7 +117,6 @@ struct FadedBarsDrawn {
     color_vec: Vec<RGB>,
 
     // newbar color settings
-    newbar_color: RGB,
     newbar_min_intensity: u8,
     newbar_max_intensity: u8,
 }
@@ -190,7 +189,7 @@ impl BackgroundDrawn {
         //  - Otherwise Update the color_vec and barghosts with the more faded color entry
         for i in 0..self.color_vec.len() {
             if let Some(current_ghost_bar_color) = &mut painter.bar_ghosts[i] {
-                let mut current_color = RGB {r: current_ghost_bar_color.r, g: current_ghost_bar_color.g, b:current_ghost_bar_color.b};
+                let current_color = RGB {r: current_ghost_bar_color.r, g: current_ghost_bar_color.g, b:current_ghost_bar_color.b};
                 let mut desired_color = RGB {r: painter.current_bg_color.r, g: painter.current_bg_color.g, b:painter.current_bg_color.b};
 
                 let diff_colors = desired_color.subtract(current_color); // the full change that is needed to reach the desired color
@@ -218,7 +217,6 @@ impl BackgroundDrawn {
 impl FadedBarsDrawn {
     fn new(color_vec: Vec<RGB>) -> Self {
         FadedBarsDrawn {
-            newbar_color: RGB{ r:0, g:0, b:60 },
             newbar_min_intensity: 4,
             newbar_max_intensity: 60,
             color_vec

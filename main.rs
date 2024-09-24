@@ -145,7 +145,7 @@ fn main() {
 
         let bytes_read: usize = eq_tuner.audio_driver.read(&mut audiobuffer, 1000).unwrap();
         for chunks in audiobuffer.chunks(4).take(bytes_read / 4) { 
-            // on Esp32S3 for my two devices the MEMS microphone outputted the middle two bytes and the linejack component all 4 bytes. Currently working with linejack
+            // on Esp32S3 for my two devices the MEMS microphone outputted the middle two bytes and garbage in the 1st and 4th. The linejack hardware outputs all 4 bytes. Currently working with linejack
             let unprocessed_audio_value = i32::from_le_bytes( [chunks[0], chunks[1], chunks[2], chunks[3]]);
             audio_processor.process(unprocessed_audio_value, &eq_tuner.mode);
         }

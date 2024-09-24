@@ -22,7 +22,6 @@ pub struct AudioFrequalizer {
 impl AudioFrequalizer {
     pub fn new(num_bins: u8) -> Self {
         let samples_max = 2048; // 2048 was about the max I could fill the FFT transform with before crashing the ESP and it gives a good range of frequencies, slightly more than can be heard by most humans.
-        let samples_buffer: RawBuffer;
         let eq_bins = Vec::with_capacity(num_bins as usize);
 
         AudioFrequalizer {
@@ -123,7 +122,6 @@ impl FFTResultBins {
     }
 }
 struct ResultBins {
-    num_bins: u8,
     edges: Vec<f32>, // edges for the bins, 1 more edge than number of buns. Based on these edges the FFT is placed in bins. Every edge is a frequency value.
     bins: Vec<f32>,
     sample_rate: u32
@@ -142,7 +140,6 @@ impl ResultBins {
         }
 
         ResultBins {
-            num_bins,
             edges,
             bins: vec![],
             sample_rate
