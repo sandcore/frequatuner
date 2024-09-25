@@ -75,21 +75,24 @@ impl Esp32S3c1 {
         let mut gpio_hashmap = HashMap::new();
         let mut i2s_hashmap = HashMap::new();
 
-        seq!(N in 0..=21 {
-            if true{
+        // 22 up and including 25 are not available on ESP32S3-c1.
+        seq!(N in 0..22 {
             #(
-                /* Downgrade turns every specific gpioNUMBER struct into an AnyIOPin.
-                 Loses info about the pin (for instance if it's input only or not)
-                 so careful when choosing pins.
-                 This may need a refactor when projects start using something else than
-                 input pins so the idf-hal can protect against choices that won't work. Or
-                 just need to pay attention choosing pins. */
+                    /* Downgrade turns every specific gpioNUMBER struct into an AnyIOPin.
+                    Loses info about the pin (for instance if it's input only or not)
+                    so careful when choosing pins.
+                    This may need a refactor when projects start using something else than
+                    input pins so the idf-hal can protect against choices that won't work. Or
+                    just need to pay attention choosing pins. */
 
-                gpio_hashmap.insert(N, periphs.pins.gpio~N.downgrade());
+                    gpio_hashmap.insert(N, periphs.pins.gpio~N.downgrade());
             )*
-            }
         });
-        
+        seq!(N in 26..=48 {
+            #(
+                    gpio_hashmap.insert(N, periphs.pins.gpio~N.downgrade());
+            )*
+        });
         i2s_hashmap.insert(0, I2sEnum::I2S0(periphs.i2s0));
         i2s_hashmap.insert(1, I2sEnum::I2S1(periphs.i2s1));
 
@@ -108,7 +111,7 @@ impl Esp32S3c1 {
 pub fn get_on_board_boot_button<'a>(esp32: &mut Esp32S3c1, optional_gpio_num: Option<AnyIOPin>) -> PinDriver<'a, AnyIOPin, Input> {
     let gpio = optional_gpio_num.unwrap_or(esp32.gpio_manager.get_gpio(0));
     let mut boot_button_driver = PinDriver::input(gpio).unwrap();
-    boot_button_driver.set_pull(esp_idf_hal::gpio::Pull::Up); // on board boot button has a default pull up state
+    boot_button_driver.set_pull(esp_idf_hal::gpio::Pull::Up).ok(); // on board boot button has a default pull up state
     boot_button_driver
 }
 
