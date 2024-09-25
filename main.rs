@@ -1,6 +1,7 @@
 use std::sync::atomic::{AtomicBool, Ordering}; // for the interrupt handling
 use std::time::{Duration, SystemTime};
 
+use esp_idf_hal::task::current;
 use esp_idf_hal::{delay::FreeRtos, gpio::{PinDriver, AnyIOPin, Input}, i2s::{I2sDriver, I2sRx}};
 use ws2812_esp32_rmt_driver::driver::Ws2812Esp32RmtDriver;
 
@@ -142,12 +143,28 @@ impl <'a>EqTuner<'a> {
 
         self.ledmatrix_driver.write(&graphic).ok();
         let gr_c = graphics::c();
-        graphics::paint_element(&mut mode_init_screen, gr_c, 6, 30, self.ledmatrix_max_x, self.ledmatrix_max_y);
+        //graphics::paint_element(&mut mode_init_screen, &gr_c, 1, -2, self.ledmatrix_max_x, self.ledmatrix_max_y);
         println!("------------------- ELEMENT PAINT TEST ---------------------");
         println!("{:?}", mode_init_screen);
-
-
-        self.visual_processor.color_vec = mode_init_screen; // replace with an initial screen after switch
+        let mut mode_init_initial = mode_init_screen.clone();
+        let mut current_pos_x = 0;
+        for i in 0..12 {
+            current_pos_x += 1;
+            graphics::paint_element(&mut mode_init_initial, &gr_c, current_pos_x, 14, self.ledmatrix_max_x, self.ledmatrix_max_y);
+            self.visual_processor.color_vec = mode_init_initial.clone(); // replace with an initial screen after switch
+            self.display_ledmatrix();
+            mode_init_initial = mode_init_screen.clone();
+            FreeRtos::delay_ms(200) // bask in the glory of the switch screen
+        }
+        for i in 0..20 {
+            current_pos_x -= 1;
+            graphics::paint_element(&mut mode_init_initial, &gr_c, current_pos_x, 8, self.ledmatrix_max_x, self.ledmatrix_max_y);
+            self.visual_processor.color_vec = mode_init_initial.clone(); // replace with an initial screen after switch
+            self.display_ledmatrix();
+            mode_init_initial = mode_init_screen.clone();
+            FreeRtos::delay_ms(200) // bask in the glory of the switch screen
+        }
+        self.visual_processor.color_vec = mode_init_screen.clone(); // replace with an initial screen after switch
         FreeRtos::delay_ms(1000) // bask in the glory of the switch screen
     }
 }

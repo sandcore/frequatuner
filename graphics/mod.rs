@@ -4,36 +4,53 @@ struct RGB {
     b: u8,
 }
 
-pub fn paint_element(pixelcolors: &mut Vec<u8>, graphic: Vec<Vec<Option<u8>>>, x_offset: usize, y_offset: usize, max_x: usize, max_y: usize) {
-    if x_offset > max_x || y_offset > max_y {
-        println!("offset check fail");
-        return //placing the graphic outside of the matrix
-    }
-    let room_for_drawing_x = max_x - x_offset;
-    let room_for_drawing_y = max_y - y_offset;
-    println!("Room for drawing: {} {}", room_for_drawing_x, room_for_drawing_y);
-
+pub fn paint_element(pixelcolors: &mut Vec<u8>, graphic: &Vec<Vec<Option<u8>>>, x_offset: i32, y_offset: i32, max_x: usize, max_y: usize) {
     let graphic_width = graphic[0].len();
-    println!("Graphic width: {}", graphic_width);
+    let graphic_height = graphic.len();
+    println!("Graphic width: {}, height: {}", graphic_width, graphic_height);
+
+    if x_offset > max_x as i32 || y_offset > max_y as i32 {
+        println!("offset check fail positively");
+        return //placing the graphic outside of the matrix on the right or top
+    }
+    if (x_offset + graphic_width as i32) < 0 || (y_offset + graphic_height as i32) < 0 {
+        println!("offset check fail negatively");
+        return
+    }
+
+    let room_for_drawing_x = max_x as i32 - x_offset;
+    let room_for_drawing_y = max_y as i32 - y_offset;
+    println!("Room for drawing: {} {}", room_for_drawing_x, room_for_drawing_y);
 
     for (i, row) in graphic.iter().rev().enumerate() { //start rendering at bottom of graphic
         for col in 0.. (graphic_width) { //each x
-            if (col+1) > room_for_drawing_x || (i+1) > room_for_drawing_y {
-                println!("Skip due to col or i exceeding room");
+            let mut serpentine = false;
+            if (i as i32+y_offset) % 2 == 1 {
+                serpentine = true;
+            }
+
+            let mut matrix_x = x_offset + col as i32;
+            let matrix_y = y_offset + i as i32;
+
+            if (col+1) > room_for_drawing_x as usize || (i+1) > room_for_drawing_y as usize {
+                println!("Skip due to col or i exceeding room on the right or top");
+                continue
+            }
+            if matrix_x < 0 || matrix_y < 0 {
+                println!("Skip due to col or i not on the matrix due to offset");
                 continue
             }
 
-            let mut matrix_x = x_offset + col;
-            let matrix_y = y_offset + i;
-    
-            if (i+y_offset) % 2 == 1 { // serpentine row
-                matrix_x = max_x-1 - x_offset - col;
+            if serpentine { // serpentine row
+                matrix_x = max_x as i32 - 1 - x_offset - col as i32;
             }
+
             if row[col] == Some(1) {
-                println!("Draw a freakin pixel at {}", (matrix_x*3 + (matrix_y*max_x)*3));
-                pixelcolors[(matrix_x*3 + (matrix_y*max_x)*3)] = 255;
-                pixelcolors[(matrix_x*3 + (matrix_y*max_x)*3)+1] = 255;
-                pixelcolors[(matrix_x*3 + (matrix_y*max_x)*3)+2] = 255;
+                let index_in_color_vec = (matrix_x*3 + (matrix_y*max_x as i32)*3) as usize;
+                println!("Draw a freakin pixel at {}", index_in_color_vec);
+                pixelcolors[index_in_color_vec] = 255;
+                pixelcolors[index_in_color_vec+1] = 255;
+                pixelcolors[index_in_color_vec+2] = 255;
             }
         }
     }
