@@ -1,4 +1,3 @@
-use std::io::empty;
 use std::sync::atomic::{AtomicBool, Ordering}; // for the interrupt handling
 use std::time::{Duration, SystemTime};
 
@@ -9,6 +8,7 @@ mod esp32s3_hw; // driver wrappers for confirmed working on-board and connected 
 use esp32s3_hw::Esp32S3c1;
 
 mod audiovisual; // process audio feed and output to led matrix
+mod graphics;
 
 pub enum EqTunerMode {
     Equalizer,
@@ -123,7 +123,7 @@ impl <'a>EqTuner<'a> {
 
     fn display_switch_screen(&mut self) {
         let graphic = vec![4u8; self.ledmatrix_max_x*self.ledmatrix_max_y*3];
-        let mode_init_screen = match self.mode {
+        let mut mode_init_screen = match self.mode {
             EqTunerMode::Equalizer => {
                 let mut empty_canvas = Vec::with_capacity(self.ledmatrix_max_x*self.ledmatrix_max_y);
                 for _ in 0..(self.ledmatrix_max_x*self.ledmatrix_max_y) {
@@ -141,6 +141,12 @@ impl <'a>EqTuner<'a> {
         };
 
         self.ledmatrix_driver.write(&graphic).ok();
+        let gr_c = graphics::c();
+        graphics::paint_element(&mut mode_init_screen, gr_c, 6, 30, self.ledmatrix_max_x, self.ledmatrix_max_y);
+        println!("------------------- ELEMENT PAINT TEST ---------------------");
+        println!("{:?}", mode_init_screen);
+
+
         self.visual_processor.color_vec = mode_init_screen; // replace with an initial screen after switch
         FreeRtos::delay_ms(1000) // bask in the glory of the switch screen
     }
