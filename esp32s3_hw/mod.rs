@@ -96,8 +96,8 @@ impl Esp32S3c1 {
         i2s_hashmap.insert(0, I2sEnum::I2S0(periphs.i2s0));
         i2s_hashmap.insert(1, I2sEnum::I2S1(periphs.i2s1));
 
-        let gpio_manager = GpioManager{gpio_hashmap:gpio_hashmap};
-        let i2s_manager = I2sManager{i2s_hashmap:i2s_hashmap};
+        let gpio_manager = GpioManager{gpio_hashmap};
+        let i2s_manager = I2sManager{i2s_hashmap};
 
         Esp32S3c1 {
             gpio_manager,
@@ -135,17 +135,23 @@ pub fn get_on_board_wifi_driver<'a>(esp32: &'a mut Esp32S3c1, ssid: &str, passwo
 }
 
 pub fn get_mems_microphone_i2s_driver<'a>( 
+    esp32: &mut Esp32S3c1,
     sample_rate: u32,
-    i2s_choice: I2sEnum, 
-    audio_gpios: Vec<AnyIOPin>
+    i2s_num: u8, 
+    bclk_num: u8,
+    din_num: u8,
+    ws_num: u8
     ) -> I2sDriver<'a, I2sRx> {
-        i2s_rx_mems_mic::boot_get_driver(sample_rate, i2s_choice, audio_gpios)
+        i2s_rx_mems_mic::boot_get_driver(esp32, sample_rate, i2s_num, bclk_num, din_num, ws_num)
 }
 
 pub fn get_linejack_i2s_driver<'a>(
+    esp32: &mut Esp32S3c1,
     sample_rate: u32,
-    i2s_choice: I2sEnum, 
-    audio_gpios: Vec<AnyIOPin>
+    i2s_num: u8, 
+    bclk_num: u8,
+    din_num: u8,
+    ws_num: u8
     ) -> I2sDriver<'a, I2sRx> {
-        i2s_rx_adc_jack::boot_get_driver(sample_rate, i2s_choice, audio_gpios)
+        i2s_rx_adc_jack::boot_get_driver(esp32, sample_rate, i2s_num, bclk_num, din_num, ws_num)
 }

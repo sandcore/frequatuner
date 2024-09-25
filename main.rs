@@ -39,10 +39,7 @@ impl <'a>EqTuner<'a> {
     fn new(sample_rate:u32, num_frequency_bins: u8, ledmatrix_max_x: usize, ledmatrix_max_y: usize) -> Self {
         let mut esp32 = Esp32S3c1::new();
 
-        let audio_gpios = esp32.gpio_manager.get_gpios(vec![5,7,6]); //bclk, din, ws
-        let i2s_choice = esp32.i2s_manager.get_i2s(0);
-        let audio_driver = esp32s3_hw::get_linejack_i2s_driver(sample_rate, i2s_choice, audio_gpios);
-        
+        let audio_driver = esp32s3_hw::get_linejack_i2s_driver(&mut esp32, sample_rate, 0, 5, 7, 6);        
         let ledmatrix_driver = esp32s3_hw::get_ws2812ledstrip_driver(&mut esp32, 3, 18);
         
         // set up the mode switch button and set an interrupt on it
