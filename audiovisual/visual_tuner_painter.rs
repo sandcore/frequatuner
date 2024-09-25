@@ -48,7 +48,7 @@ pub struct Painter {
 impl Painter {
     pub fn new(x: usize, y: usize) -> Self {
         let mut bar_ghosts: Vec<Option<RGB>> = Vec::with_capacity(x*y);
-        for i in 0..x*y {
+        for _ in 0..x*y {
             bar_ghosts.push(None);
         }
 
@@ -58,11 +58,11 @@ impl Painter {
         }
     }
     pub fn paint(&mut self, note_det_result: &NoteDetectionResult) -> Vec<u8> {
-        let mut detected_note = &note_det_result.note_name;
-        let mut prev_note = &note_det_result.previous_note_name;
-        let mut next_note = &note_det_result.next_note_name;
-        let mut cents_offset = note_det_result.cents_offset;
-        let mut in_tune = note_det_result.in_tune;
+        let detected_note = &note_det_result.note_name;
+        let prev_note = &note_det_result.previous_note_name;
+        let next_note = &note_det_result.next_note_name;
+        let cents_offset = note_det_result.cents_offset;
+        let in_tune = note_det_result.in_tune;
 
         println!("{} {} {} {} {}", &note_det_result.note_name, &note_det_result.previous_note_name, &note_det_result.next_note_name, &note_det_result.cents_offset, &note_det_result.in_tune);
 
@@ -102,7 +102,6 @@ struct BaseLined {
 
 struct DetectedLineDrawn {
     max_x: usize,
-    max_y: usize,
     color_vec: Vec<RGB>,
 
     // settings for the note to draw
@@ -121,7 +120,7 @@ struct NotesDrawn {
 impl BlankCanvas {
     pub fn new(max_x: usize, max_y: usize) -> BlankCanvas {
         let mut empty_canvas = Vec::with_capacity(max_x*max_y);
-        for i in 0..(max_x*max_y) {
+        for _ in 0..(max_x*max_y) {
             empty_canvas.push(RGB{r:1,g:1,b:5});
         }
 
@@ -173,7 +172,6 @@ impl BaseLined {
 
         DetectedLineDrawn {
             max_x: self.max_x,
-            max_y: self.max_y,
             color_vec: self.color_vec,
             detected_note_color: RGB{r:200, g:0, b: 0},
             in_tune_color: RGB{r:0, g:255, b:0},
@@ -209,29 +207,29 @@ impl DetectedLineDrawn {
 
     // this function doesnt check if the note being drawn bleeds over the end of the row or column, so offsets have to be chosen so that all notes will fit on the ledmatrix
     fn draw_note(&mut self, graphical_note: GraphicalNote, note_type: InterfaceElement, in_tune: bool) {
-        let mut x_offset = 0;
-        let mut y_offset = 0;
-        let mut color;
-
-        match note_type {
+        let (color, y_offset, x_offset) = match note_type {
             InterfaceElement::DetectedNote => {
-                (y_offset, x_offset) = self.start_row_col_detected;
+                let (y_offset, x_offset) = self.start_row_col_detected;
+                let color;
                 if in_tune {
                     color = &self.in_tune_color;
                 }
                 else {
                     color = &self.detected_note_color;
                 }
+                (color, y_offset, x_offset)
             },
             InterfaceElement::PreviousNote => {
-                (y_offset, x_offset) = self.start_row_col_prev;
-                color = &self.adjacent_note_color;
+                let (y_offset, x_offset) = self.start_row_col_prev;
+                let color = &self.adjacent_note_color;
+                (color, y_offset, x_offset)
             },
             InterfaceElement::NextNote => {
-                (y_offset, x_offset) = self.start_row_col_next;
-                color = &self.adjacent_note_color;
+                let (y_offset, x_offset) = self.start_row_col_next;
+                let color = &self.adjacent_note_color;
+                (color, y_offset, x_offset)
             }
-        }
+        };
 
         let note_width = graphical_note.matrix[0].len();
 

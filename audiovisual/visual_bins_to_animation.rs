@@ -33,14 +33,6 @@ impl RGB {
             b: (self.b as i16 + diff[2]) as u8
         }
     }
-
-    fn multiply(&mut self, factor: f32) -> RGB {
-        RGB {
-            r: (self.r as f32*factor) as u8,
-            g: (self.g as f32*factor) as u8,
-            b: (self.b as f32*factor) as u8
-         }
-    }
 }
 
 
@@ -61,7 +53,7 @@ pub struct Painter {
 impl Painter {
     pub fn new(x: usize, y: usize) -> Self {
         let mut bar_ghosts = Vec::with_capacity(x*y);
-        for i in 0..x*y {
+        for _ in 0..x*y {
             bar_ghosts.push(None);
         }
 
@@ -127,7 +119,7 @@ struct NewBarsDrawn {
 impl BlankCanvas {
     fn new(max_x: usize, max_y: usize) -> BlankCanvas {
         let mut empty_canvas = vec![];
-        for i in 0..(max_x*max_y) {
+        for _ in 0..(max_x*max_y) {
             empty_canvas.push(RGB{r:1,g:1,b:1});
         }
 

@@ -1,5 +1,5 @@
 use esp_idf_hal::{
-    gpio::*, i2s::{config::{ClockSource::*, MclkMultiple::*, SlotMode::*, *}, *}, prelude::Peripherals, sys, peripheral::Peripheral
+    gpio::*, i2s::{config::{ClockSource, MclkMultiple::*, SlotMode::*, *}, *}
 };
 
 use super::I2sEnum;
@@ -26,6 +26,6 @@ pub fn boot_get_driver<'i>(
             I2sEnum::I2S1(i2s_peripheral) => I2sDriver::new_std_rx(i2s_peripheral, &i2s_std_config, bclk, din, mclk, ws).unwrap()
         };
 
-        i2s_driver.rx_enable();
+        i2s_driver.rx_enable().ok();
         i2s_driver
 }

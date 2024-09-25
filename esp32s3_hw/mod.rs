@@ -75,7 +75,7 @@ impl Esp32S3c1 {
         let mut gpio_hashmap = HashMap::new();
         let mut i2s_hashmap = HashMap::new();
 
-        // 22 up and including 25 are not available on ESP32S3-c1.
+        // 22 up to and including 25 are not available on ESP32S3-c1.
         seq!(N in 0..22 {
             #(
                     /* Downgrade turns every specific gpioNUMBER struct into an AnyIOPin.
