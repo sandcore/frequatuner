@@ -108,8 +108,9 @@ impl Esp32S3c1 {
 }
 
 // on board boot button gpio is 0 on my device
-pub fn get_on_board_boot_button<'a>(esp32: &mut Esp32S3c1, optional_gpio_num: Option<AnyIOPin>) -> PinDriver<'a, AnyIOPin, Input> {
-    let gpio = optional_gpio_num.unwrap_or(esp32.gpio_manager.get_gpio(0));
+pub fn get_on_board_boot_button<'a>(esp32: &mut Esp32S3c1, optional_gpio_num: Option<u8>) -> PinDriver<'a, AnyIOPin, Input> {
+    let gpio_num = optional_gpio_num.unwrap_or(0);
+    let gpio = esp32.gpio_manager.get_gpio(gpio_num);
     let mut boot_button_driver = PinDriver::input(gpio).unwrap();
     boot_button_driver.set_pull(esp_idf_hal::gpio::Pull::Up).ok(); // on board boot button has a default pull up state
     boot_button_driver
