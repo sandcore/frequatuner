@@ -4,7 +4,7 @@ use pitch_detection::detector::{mcleod::McLeodDetector, PitchDetector};
 use pitch_detector::note::NoteDetectionResult;
 use fundsp::hacker32::*;
 
-// Every 1024 samples a pitch detection loop is started. The DSP filter (low and highpass) is configured at a 64 sample buffer. Probably a good idea to keep the amount of samples used in a
+// Every X samples a pitch detection loop is started. The DSP filter (low and highpass) uses a 64 sample buffer. Probably a good idea to keep the amount of samples used in a
 // pitch detection loop a multiple of the DSP sample buffer when changes values around.
 
 /*
@@ -25,7 +25,7 @@ pub struct GiTuner {
 
 impl GiTuner {
     pub fn new(buffer_length: usize) -> Self {
-        // better frequency detection resolution by using more (1024+) samples, otherwise low E string is not measured right
+        // There is better frequency detection resolution by using more (1024+) samples, otherwise low E string is not measured right
         // https://www.cycfi.com/2018/04/fast-and-efficient-pitch-detection-bliss/
         let samples_max_analysis = 2048; // number of samples in every analysis run.
 
@@ -69,7 +69,6 @@ struct RawBuffer {
 impl RawBuffer {
     pub fn new(buffer_length: usize) -> RawBuffer {
         // fundsp filters. 
-        // pre-amp lower freqs a little because low E string is hard to detect
         // lowpass and highpass are combined into a composite type
         // need to be persisted because fundsp filters work by mainining internal state
         // another reason RawBuffer can't be dropped
@@ -91,7 +90,7 @@ impl RawBuffer {
         let max_dsp_buffer = 64; // max size of the processing used by fundsp
         let max_dsp_buffer_idx = 63; // for use in index calculations
 
-        let gain = 2.0f32; // Boost signal because of low amplitude direct guitar input
+        let gain = 2.0f32; // Boost signal because of low amplitude direct guitar input. Second gain on top of the gain in the main processor.
 
         // Used BufferArrays before integrating all parts of EqTuner project together, and that worked before. But in the integrated project
         // BufferArrays cause a panic without a source location, guess stack related.

@@ -60,7 +60,7 @@ impl <'a>EqTuner<'a> {
             mode_button_driver,
             sample_rate,
             num_frequency_bins,
-            frame_duration: Duration::from_micros(60000), // 16 fps is more than enough. Won't be 50 exactly due to execution times but should be a fast enough constant refresh rate that doesnt glitch the matrix
+            frame_duration: Duration::from_micros(60000), // 16 fps is more than enough. Won't be exact due to execution times but should be a fast enough constant refresh rate that doesnt glitch the matrix
             last_visual_update: SystemTime::now(),
             ledmatrix_max_x,
             ledmatrix_max_y
