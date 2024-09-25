@@ -1,3 +1,4 @@
+use std::io::empty;
 use std::sync::atomic::{AtomicBool, Ordering}; // for the interrupt handling
 use std::time::{Duration, SystemTime};
 
@@ -23,9 +24,13 @@ using vertically placed 8x32 matrix, so 32 freq bins). To change that some minor
 */
 struct EqTuner<'a> {
     mode: EqTunerMode,
+    audiobuffer: [u8; 3072],
     audio_driver: I2sDriver<'a, I2sRx>,
     ledmatrix_driver: Ws2812Esp32RmtDriver,
     mode_button_driver: PinDriver<'a, AnyIOPin, Input>,
+    
+    audio_processor: audiovisual::AudioProcessor,
+    visual_processor: audiovisual::VisualProcessor,
 
     sample_rate: u32,
     num_frequency_bins: u8,
@@ -38,6 +43,10 @@ struct EqTuner<'a> {
 impl <'a>EqTuner<'a> {
     fn new(sample_rate:u32, num_frequency_bins: u8, ledmatrix_max_x: usize, ledmatrix_max_y: usize) -> Self {
         let mut esp32 = Esp32S3c1::new();
+        let audiobuffer = [0; 3072]; // buffer for the sound driver
+
+        let audio_processor = audiovisual::AudioProcessor::new(audiobuffer.len(), num_frequency_bins, sample_rate);
+        let visual_processor = audiovisual::VisualProcessor::new(ledmatrix_max_x, ledmatrix_max_y);
 
         let audio_driver = esp32s3_hw::get_linejack_i2s_driver(&mut esp32, sample_rate, 0, 5, 7, 6);        
         let ledmatrix_driver = esp32s3_hw::get_ws2812ledstrip_driver(&mut esp32, 3, 18);
@@ -52,9 +61,12 @@ impl <'a>EqTuner<'a> {
 
         EqTuner {
             mode: EqTunerMode::Equalizer,
+            audiobuffer,
             audio_driver,
             ledmatrix_driver,
             mode_button_driver,
+            audio_processor,
+            visual_processor,
             sample_rate,
             num_frequency_bins,
             frame_duration: Duration::from_micros(60000), // 16 fps is more than enough. Won't be exact due to execution times but should be a fast enough constant refresh rate that doesnt glitch the matrix
@@ -62,6 +74,19 @@ impl <'a>EqTuner<'a> {
             ledmatrix_max_x,
             ledmatrix_max_y
         }
+    }
+
+    fn process_audio_buffer(&mut self) {
+        let bytes_read = self.audio_driver.read(&mut self.audiobuffer, 1000).unwrap();
+        for chunks in self.audiobuffer.chunks(4).take(bytes_read / 4) { 
+            // on Esp32S3 for my two devices the MEMS microphone outputted the middle two bytes and garbage in the 1st and 4th. The linejack hardware outputs all 4 useful bytes. Currently working with linejack
+            let unprocessed_audio_value = i32::from_le_bytes( [chunks[0], chunks[1], chunks[2], chunks[3]]);
+            self.audio_processor.process(unprocessed_audio_value, &self.mode);
+        }
+    }
+
+    fn process_visuals(&mut self) {
+        self.visual_processor.process(&self.audio_processor, &self.mode);
     }
 
     fn check_mode_switch(&mut self) {
@@ -86,29 +111,37 @@ impl <'a>EqTuner<'a> {
         self.display_switch_screen();
     }
 
-    fn display_ledmatrix(&mut self, colors: &Vec<u8>) {
+    fn display_ledmatrix(&mut self) {
         let now = SystemTime::now();
         let elapsed = now.duration_since(self.last_visual_update).unwrap_or(Duration::ZERO);
 
         if elapsed >= self.frame_duration {
-            self.ledmatrix_driver.write(colors).ok();
+            self.ledmatrix_driver.write(&self.visual_processor.color_vec).ok();
             self.last_visual_update = now;
         }
     }
 
     fn display_switch_screen(&mut self) {
         let graphic = vec![4u8; self.ledmatrix_max_x*self.ledmatrix_max_y*3];
-        
-        match self.mode {
+        let mode_init_screen = match self.mode {
             EqTunerMode::Equalizer => {
-
+                let mut empty_canvas = Vec::with_capacity(self.ledmatrix_max_x*self.ledmatrix_max_y);
+                for _ in 0..(self.ledmatrix_max_x*self.ledmatrix_max_y) {
+                    empty_canvas.append(&mut vec![1,1,5]);
+                }
+                empty_canvas
             },
             EqTunerMode::Tuner => {
-
+                let mut empty_canvas = Vec::with_capacity(self.ledmatrix_max_x*self.ledmatrix_max_y);
+                for _ in 0..(self.ledmatrix_max_x*self.ledmatrix_max_y) {
+                    empty_canvas.append(&mut vec![1,1,5]);
+                }
+                empty_canvas
             }
-        }
+        };
 
         self.ledmatrix_driver.write(&graphic).ok();
+        self.visual_processor.color_vec = mode_init_screen; // replace with an initial screen after switch
         FreeRtos::delay_ms(1000) // bask in the glory of the switch screen
     }
 }
@@ -122,15 +155,9 @@ fn boot_button_callback() {
 fn main() {
     esp_idf_hal::sys::link_patches();
     let mut eq_tuner = EqTuner::new(48000, 32, 8, 32);
-    let mut audiobuffer = [0; 3072]; // buffer for the sound driver
-
-    // working with an 8x32 led matrix. The equalizer will display a frequency range on every row
-    let mut audio_processor = audiovisual::AudioProcessor::new(audiobuffer.len(), eq_tuner.num_frequency_bins, eq_tuner.sample_rate);
-    let mut visual_processor = audiovisual::VisualProcessor::new(eq_tuner.ledmatrix_max_x, eq_tuner.ledmatrix_max_y);
 
     /*
-    Main loop: read the audiobuffer from the i2s driver and run
-    the audio processor on it. 
+    Main loop: read the audiobuffer from the i2s driver and run the audio processor on it. 
 
     The visual processor reads audioprocessor output, processes, and outputs the color array (size is ledmatrix_x*ledmatrix_y*3 for g,r,b on every led) 
     */
@@ -140,14 +167,9 @@ fn main() {
         // Switch from equalizer to tuner and back on button presses
         eq_tuner.check_mode_switch();
 
-        let bytes_read: usize = eq_tuner.audio_driver.read(&mut audiobuffer, 1000).unwrap();
-        for chunks in audiobuffer.chunks(4).take(bytes_read / 4) { 
-            // on Esp32S3 for my two devices the MEMS microphone outputted the middle two bytes and garbage in the 1st and 4th. The linejack hardware outputs all 4 useful bytes. Currently working with linejack
-            let unprocessed_audio_value = i32::from_le_bytes( [chunks[0], chunks[1], chunks[2], chunks[3]]);
-            audio_processor.process(unprocessed_audio_value, &eq_tuner.mode);
-        }
+        eq_tuner.process_audio_buffer();
+        eq_tuner.process_visuals();
 
-        visual_processor.process(&audio_processor, &eq_tuner.mode);
-        eq_tuner.display_ledmatrix(&visual_processor.color_vec);
+        eq_tuner.display_ledmatrix();
     }
 }
