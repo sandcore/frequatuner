@@ -18,4 +18,4 @@ Hardware used currently is:
 + an AliExpress ledmatrix of 8x32 Ws2812 LEDS that takes a serpentining string of GRB values as input
 + an AliExpress ADC I2S conversion module that includes 3 line-in options.
 
-Audio processing is done using crates fundsp, pitch_detector, pitch_detection and rust fft.
+Audio processing is done using crates fundsp, pitch_detector, pitch_detection and rustfft.
