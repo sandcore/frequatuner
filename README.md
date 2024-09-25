@@ -4,7 +4,7 @@
 
 
 An embedded Rust project that has one of the following two processing modes with audio input:
-* Convert audio signal to frequencies with magnitudes, and display them
+* Convert audio signal to frequencies with magnitudes, and display them in an animated graphical equalizer
 * Detect the pitch of the audio signal and display a tuner (goal note, adjacent notes and distance to goal note, basically)
 
 The processing mode can be switched by pressing a button.
