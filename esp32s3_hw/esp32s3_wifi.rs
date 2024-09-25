@@ -8,13 +8,13 @@ use embedded_svc::wifi::{ClientConfiguration, Configuration};
 
 /*
 Wifi was just used for some UDP audio streaming in current project as a test of audio input peripherals.
-It assumes working wifi station and valid username and password.
+It assumes working wifi station and valid username and password. Currently not in use but available for when a test is necessary.
  */
 pub fn boot_get_driver<'a>(modem: &'a mut Modem, ssid: &str, password: &str) -> EspWifi<'a> {
     let mut heapless_ssid: heapless::String<32> = heapless::String::new();
     let mut heapless_passwd: heapless::String<64> = heapless::String::new();
-    heapless_ssid.push_str(&ssid);
-    heapless_passwd.push_str(&password);
+    heapless_ssid.push_str(&ssid).ok();
+    heapless_passwd.push_str(&password).ok();
 
     let sys_loop = EspSystemEventLoop::take().unwrap();
     let nvs = EspDefaultNvsPartition::take().unwrap();

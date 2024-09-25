@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use esp_idf_hal::{
-    gpio::*, i2s::{config::{ClockSource::*, MclkMultiple::*, SlotMode::*, *}, *}, prelude::Peripherals, sys, peripheral::Peripheral, modem::Modem
+    gpio::*, i2s::*, prelude::Peripherals, modem::Modem
 };
 use esp_idf_svc::wifi::EspWifi;
 use ws2812_esp32_rmt_driver::driver::Ws2812Esp32RmtDriver;

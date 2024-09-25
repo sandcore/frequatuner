@@ -1,5 +1,5 @@
 use std::sync::atomic::{AtomicBool, Ordering}; // for the interrupt handling
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime};
 
 use esp_idf_hal::{delay::FreeRtos, gpio::{PinDriver, AnyIOPin, Input}, i2s::{I2sDriver, I2sRx}};
 use ws2812_esp32_rmt_driver::driver::Ws2812Esp32RmtDriver;
@@ -47,11 +47,11 @@ impl <'a>EqTuner<'a> {
         
         // set up the mode switch button and set an interrupt on it
         let mut mode_button_driver = esp32s3_hw::get_on_board_boot_button(&mut esp32, None);
-        mode_button_driver.set_interrupt_type(esp_idf_hal::gpio::InterruptType::NegEdge);
+        mode_button_driver.set_interrupt_type(esp_idf_hal::gpio::InterruptType::NegEdge).ok();
         unsafe {
             mode_button_driver.subscribe(boot_button_callback).expect("Interrupt subscribe failed");
         }
-        mode_button_driver.enable_interrupt();
+        mode_button_driver.enable_interrupt().ok();
 
         EqTuner {
             mode: EqTunerMode::Equalizer,
@@ -71,7 +71,7 @@ impl <'a>EqTuner<'a> {
         if BOOTTON_PRESSED.load(Ordering::Relaxed) {
             BOOTTON_PRESSED.store(false, Ordering::Relaxed);
             self.switch_mode(None);
-            self.mode_button_driver.enable_interrupt();
+            self.mode_button_driver.enable_interrupt().ok();
         }
     }
 
@@ -94,13 +94,13 @@ impl <'a>EqTuner<'a> {
         let elapsed = now.duration_since(self.last_visual_update).unwrap_or(Duration::ZERO);
 
         if elapsed >= self.frame_duration {
-            self.ledmatrix_driver.write(colors);
+            self.ledmatrix_driver.write(colors).ok();
             self.last_visual_update = now;
         }
     }
 
     fn display_switch_screen(&mut self) {
-        let mut graphic = vec![4u8; self.ledmatrix_max_x*self.ledmatrix_max_y*3];
+        let graphic = vec![4u8; self.ledmatrix_max_x*self.ledmatrix_max_y*3];
         
         match self.mode {
             EqTunerMode::Equalizer => {
@@ -111,7 +111,7 @@ impl <'a>EqTuner<'a> {
             }
         }
 
-        self.ledmatrix_driver.write(&graphic);
+        self.ledmatrix_driver.write(&graphic).ok();
         FreeRtos::delay_ms(1000) // bask in the glory of the switch screen
     }
 }
@@ -145,7 +145,7 @@ fn main() {
 
         let bytes_read: usize = eq_tuner.audio_driver.read(&mut audiobuffer, 1000).unwrap();
         for chunks in audiobuffer.chunks(4).take(bytes_read / 4) { 
-            // on Esp32S3 for my two devices the MEMS microphone outputted the middle two bytes and garbage in the 1st and 4th. The linejack hardware outputs all 4 bytes. Currently working with linejack
+            // on Esp32S3 for my two devices the MEMS microphone outputted the middle two bytes and garbage in the 1st and 4th. The linejack hardware outputs all 4 useful bytes. Currently working with linejack
             let unprocessed_audio_value = i32::from_le_bytes( [chunks[0], chunks[1], chunks[2], chunks[3]]);
             audio_processor.process(unprocessed_audio_value, &eq_tuner.mode);
         }
