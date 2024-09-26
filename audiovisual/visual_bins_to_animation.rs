@@ -1,4 +1,6 @@
 use std::f32::consts::PI;
+use crate::{LEDS_MAX_X, LEDS_MAX_Y};
+
 use super::graphics::*;
 
 /*
@@ -12,9 +14,6 @@ aliexpress ledmatrix that takes G R B (for some reason) and serpentines every ot
 Painter keeps some general state and runs the animation process.
 */
 pub struct Painter {
-    led_matrix_max_x: usize,
-    led_matrix_max_y: usize,
-
     // some paint state that is needed between iterations
     iteration: u16,
     background_cycle_state: f32,
@@ -23,16 +22,13 @@ pub struct Painter {
     bar_ghosts: Vec<Option<RGB>>, // for fadeout of previous bars
 }
 impl Painter {
-    pub fn new(x: usize, y: usize) -> Self {
-        let mut bar_ghosts = Vec::with_capacity(x*y);
-        for _ in 0..x*y {
+    pub fn new() -> Self {
+        let mut bar_ghosts = Vec::with_capacity(LEDS_MAX_X*LEDS_MAX_Y);
+        for _ in 0..LEDS_MAX_X*LEDS_MAX_Y {
             bar_ghosts.push(None);
         }
 
         Painter {
-            led_matrix_max_x: x,
-            led_matrix_max_y: y,
-
             // some paint state that is needed between iterations
             iteration: 0,
             background_cycle_state: 0.0,
@@ -43,7 +39,7 @@ impl Painter {
     }
 
     pub fn paint(&mut self, eq_bins: &Vec<f32>) -> Vec<u8> { // go from a blank canvas to a painted canvas
-        let blank_canvas = BlankCanvas::new(self.led_matrix_max_x, self.led_matrix_max_y);        
+        let blank_canvas = BlankCanvas::new();        
         let background_drawn = blank_canvas.draw_background(self);
         let faded_bars_drawn = background_drawn.draw_fade_bars(self);
         let new_bars_drawn = faded_bars_drawn.draw_new_bars(self, eq_bins);
@@ -89,9 +85,9 @@ struct NewBarsDrawn {
 }
 
 impl BlankCanvas {
-    fn new(max_x: usize, max_y: usize) -> BlankCanvas {
+    fn new() -> BlankCanvas {
         let mut empty_canvas = vec![];
-        for _ in 0..(max_x*max_y) {
+        for _ in 0..(LEDS_MAX_X*LEDS_MAX_Y) {
             empty_canvas.push(RGB{r:1,g:1,b:1});
         }
 
@@ -115,7 +111,7 @@ impl BlankCanvas {
       
         painter.current_bg_color = self.get_bg_based_on_cycle_state(&painter.background_cycle_state);
         
-        for i in 0 .. painter.led_matrix_max_x as usize * painter.led_matrix_max_y as usize {
+        for i in 0 .. LEDS_MAX_X as usize * LEDS_MAX_Y as usize {
             self.color_vec[i] = RGB{r:painter.current_bg_color.r, g:painter.current_bg_color.g, b:painter.current_bg_color.b};
         }
         
@@ -190,13 +186,13 @@ impl FadedBarsDrawn {
         // equalizer magnitudes displayed as rows on a portrait ledmatrix. Every bin corresponds 1:1 to a led matrix Y.
         for row in 0.. eq_bins.len() {
             //magnitude of frequency bin expressed in number of leds
-            let amount_leds_mag = (painter.led_matrix_max_x as f32 * eq_bins[row]).ceil().clamp(0.0, painter.led_matrix_max_x as f32) as u32;
+            let amount_leds_mag = (LEDS_MAX_X as f32 * eq_bins[row]).ceil().clamp(0.0, LEDS_MAX_X as f32) as u32;
 
             let newbar_color = self.get_newbar_color(painter, &eq_bins[row]);
-            let line_graphic = super::graphics::line(painter.led_matrix_max_x, newbar_color);
-            let line_shift = painter.led_matrix_max_x as u32 - amount_leds_mag;
+            let line_graphic = super::graphics::line(LEDS_MAX_X, newbar_color);
+            let line_shift = LEDS_MAX_X as u32 - amount_leds_mag;
             
-            paint_element_rgb(&mut self.color_vec, &line_graphic, line_shift as i32, row as i32, painter.led_matrix_max_x, painter.led_matrix_max_y);
+            paint_element_rgb(&mut self.color_vec, &line_graphic, line_shift as i32, row as i32);
         }
 
         NewBarsDrawn {

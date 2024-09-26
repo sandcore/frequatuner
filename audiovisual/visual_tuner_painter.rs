@@ -1,5 +1,6 @@
 use pitch_detector::{core::NoteName, note::NoteDetectionResult};
 use super::graphics::*;
+use crate::{LEDS_MAX_X, LEDS_MAX_Y};
 
 /*
 Based on a NoteDetectionResult from pitch_detector crate. One future refactor might be to keep an enum of interface elements so their types can be passed around easily and checked, 
@@ -36,22 +37,8 @@ pub struct NoteDetectionResult
 /*
 Painter keeps some general state and runs the steps to draw layers.
 */
-pub struct Painter {
-    led_matrix_max_x: usize,
-    led_matrix_max_y: usize,
-}
+pub struct Painter {}
 impl Painter {
-    pub fn new(x: usize, y: usize) -> Self {
-        let mut bar_ghosts: Vec<Option<RGB>> = Vec::with_capacity(x*y);
-        for _ in 0..x*y {
-            bar_ghosts.push(None);
-        }
-
-        Painter {
-            led_matrix_max_x: x,
-            led_matrix_max_y: y,
-        }
-    }
     pub fn paint(&mut self, note_det_result: &NoteDetectionResult) -> Vec<u8> {
         let detected_note = &note_det_result.note_name;
         let prev_note = &note_det_result.previous_note_name;
@@ -61,7 +48,7 @@ impl Painter {
 
         println!("{} {} {} {} {}", &note_det_result.note_name, &note_det_result.previous_note_name, &note_det_result.next_note_name, &note_det_result.cents_offset, &note_det_result.in_tune);
 
-        let blank_canvas = BlankCanvas::new(self.led_matrix_max_x, self.led_matrix_max_y);
+        let blank_canvas = BlankCanvas::new();
         let base_lined = blank_canvas.draw_baseline();
         let detected_line_drawn = base_lined.draw_detected_line(cents_offset);
         let notes_drawn = detected_line_drawn.draw_notes(detected_note, prev_note, next_note, in_tune);
@@ -78,16 +65,12 @@ Typestates:
  - Draw note names
 */
 struct BlankCanvas {
-    max_x: usize,
-    max_y: usize,
     color_vec: Vec<RGB>,
 
     // setting for the line to draw
     base_line_color: RGB
 }
 struct BaseLined {
-    max_x: usize,
-    max_y: usize,
     color_vec: Vec<RGB>,
 
     // settings for the line to draw
@@ -96,8 +79,6 @@ struct BaseLined {
 }
 
 struct DetectedLineDrawn {
-    max_x: usize,
-    max_y: usize,
     color_vec: Vec<RGB>,
 
     // settings for the note to draw
@@ -114,30 +95,26 @@ struct NotesDrawn {
 }
 
 impl BlankCanvas {
-    pub fn new(max_x: usize, max_y: usize) -> BlankCanvas {
-        let mut empty_canvas = Vec::with_capacity(max_x*max_y);
-        for _ in 0..(max_x*max_y) {
+    pub fn new() -> BlankCanvas {
+        let mut empty_canvas = Vec::with_capacity(LEDS_MAX_X*LEDS_MAX_Y);
+        for _ in 0..(LEDS_MAX_X*LEDS_MAX_Y) {
             empty_canvas.push(RGB{r:1,g:1,b:5});
         }
 
         BlankCanvas {
-            max_x,
-            max_y,
             color_vec: empty_canvas,
             base_line_color: RGB{r:255,g:215,b:0}
         }
     }
 
     fn draw_baseline(mut self) -> BaseLined {
-        let baseline_row = (self.max_y as f32 / 2.0).round() as usize; // draw line starting at light 1 in row 17 (index 16), fixed around the center of the vertically placed ledstrip
-        let line_graphic = super::graphics::line(self.max_x, RGB{r: self.base_line_color.r, g:self.base_line_color.g, b: self.base_line_color.b});
-        paint_element_rgb(&mut self.color_vec, &line_graphic, 0i32, baseline_row as i32, self.max_x, self.max_y);
+        let baseline_row = (LEDS_MAX_Y as f32 / 2.0).round() as usize; // draw line starting at light 1 in row 17 (index 16), fixed around the center of the vertically placed ledstrip
+        let line_graphic = super::graphics::line(LEDS_MAX_X, RGB{r: self.base_line_color.r, g:self.base_line_color.g, b: self.base_line_color.b});
+        paint_element_rgb(&mut self.color_vec, &line_graphic, 0i32, baseline_row as i32);
 
         BaseLined {
             detected_line_color: RGB{r:51,g:255,b:255},
             baseline_row,
-            max_x: self.max_x,
-            max_y: self.max_y,
             color_vec: self.color_vec
         }
     }
@@ -146,19 +123,17 @@ impl BlankCanvas {
 impl BaseLined {
     fn draw_detected_line(mut self, cents_offset: f64) -> DetectedLineDrawn {      
         // -1 because even number leds with baseline in middle -> max distance is 1 less at one side of the baseline 
-        let max_distance = self.max_y - self.baseline_row - 1;
+        let max_distance = LEDS_MAX_Y - self.baseline_row - 1;
 
         // draw the line in the positive or negative direction at cents_offset divided by 50
         // because as soon as the offset is more than 50% a new note becomes the baseline
         let offset_distance = (max_distance as f64 * cents_offset / 50.0).round() as i16;
         let draw_row = (self.baseline_row as i16 + offset_distance) as usize;
 
-        let line_graphic = super::graphics::line(self.max_x, RGB{r: self.detected_line_color.r, g:self.detected_line_color.g, b: self.detected_line_color.b});
-        paint_element_rgb(&mut self.color_vec, &line_graphic, 0i32, draw_row as i32, self.max_x, self.max_y);
+        let line_graphic = super::graphics::line(LEDS_MAX_X, RGB{r: self.detected_line_color.r, g:self.detected_line_color.g, b: self.detected_line_color.b});
+        paint_element_rgb(&mut self.color_vec, &line_graphic, 0i32, draw_row as i32);
 
         DetectedLineDrawn {
-            max_x: self.max_x,
-            max_y: self.max_y,
             color_vec: self.color_vec,
             detected_note_color: RGB{r:200, g:0, b: 0},
             in_tune_color: RGB{r:0, g:255, b:0},
@@ -183,9 +158,9 @@ impl DetectedLineDrawn {
         let prev_note_graphic = convert_vecvecbool_to_xy_rgb_vec(graphical_prev_note.matrix, RGB{r:adjacent_note_color.r, g:adjacent_note_color.g, b:adjacent_note_color.b});
         let next_note_graphic = convert_vecvecbool_to_xy_rgb_vec(graphical_next_note.matrix, adjacent_note_color);
         
-        paint_element_rgb(&mut self.color_vec, &detected_graphic, self.start_row_col_detected.1 as i32, self.start_row_col_detected.0 as i32, self.max_x, self.max_y);
-        paint_element_rgb(&mut self.color_vec, &prev_note_graphic, self.start_row_col_prev.1 as i32, self.start_row_col_prev.0 as i32, self.max_x, self.max_y);
-        paint_element_rgb(&mut self.color_vec, &next_note_graphic, self.start_row_col_next.1 as i32, self.start_row_col_next.0 as i32, self.max_x, self.max_y);
+        paint_element_rgb(&mut self.color_vec, &detected_graphic, self.start_row_col_detected.1 as i32, self.start_row_col_detected.0 as i32);
+        paint_element_rgb(&mut self.color_vec, &prev_note_graphic, self.start_row_col_prev.1 as i32, self.start_row_col_prev.0 as i32);
+        paint_element_rgb(&mut self.color_vec, &next_note_graphic, self.start_row_col_next.1 as i32, self.start_row_col_next.0 as i32);
 
         NotesDrawn {
             color_vec: self.color_vec

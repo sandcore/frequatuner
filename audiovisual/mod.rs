@@ -1,4 +1,3 @@
-use std::i32;
 
 use crate::EqTunerMode;
 
@@ -54,8 +53,8 @@ impl VisualProcessor {
     pub fn new(x:usize, y:usize) -> Self {
         VisualProcessor {
             color_vec: vec![],
-            eq_painter: visual_bins_to_animation::Painter::new(x, y),
-            tuner_painter: visual_tuner_painter::Painter::new(x,y)
+            eq_painter: visual_bins_to_animation::Painter::new(),
+            tuner_painter: visual_tuner_painter::Painter{}
         }
     }
 

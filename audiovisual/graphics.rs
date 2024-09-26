@@ -1,4 +1,6 @@
 use pitch_detector::core::NoteName;
+use crate::LEDS_MAX_X;
+use crate::LEDS_MAX_Y;
 
 /*
 Graphical elements and their rendering. Defined some elements differently than others, depending on their origin. 
@@ -36,19 +38,19 @@ impl RGB {
     }
 }
 
-pub fn paint_element(pixelcolors: &mut Vec<u8>, graphic: &Vec<Vec<Option<RGB>>>, x_offset: i32, y_offset: i32, max_x: usize, max_y: usize) {
+pub fn paint_element(pixelcolors: &mut Vec<u8>, graphic: &Vec<Vec<Option<RGB>>>, x_offset: i32, y_offset: i32) {
     let graphic_width = graphic[0].len();
     let graphic_height = graphic.len();
 
-    if x_offset > max_x as i32 || y_offset > max_y as i32 {
+    if x_offset > LEDS_MAX_X as i32 || y_offset > LEDS_MAX_Y as i32 {
         return //placing the graphic outside of the matrix on the right or top
     }
     if (x_offset + graphic_width as i32) < 0 || (y_offset + graphic_height as i32) < 0 {
         return
     }
 
-    let room_for_drawing_x = max_x as i32 - x_offset;
-    let room_for_drawing_y = max_y as i32 - y_offset;
+    let room_for_drawing_x = LEDS_MAX_X as i32 - x_offset;
+    let room_for_drawing_y = LEDS_MAX_Y as i32 - y_offset;
 
     for (i, row) in graphic.iter().rev().enumerate() { //start rendering at bottom of graphic while all current elements are defined top-down
         for col in 0.. (graphic_width) { //each x
@@ -68,11 +70,11 @@ pub fn paint_element(pixelcolors: &mut Vec<u8>, graphic: &Vec<Vec<Option<RGB>>>,
             }
 
             if serpentine { // serpentine row
-                matrix_x = max_x as i32 - 1 - x_offset - col as i32;
+                matrix_x = LEDS_MAX_X as i32 - 1 - x_offset - col as i32;
             }
 
             if let Some(rgb) = &row[col] {
-                let index_in_color_vec = (matrix_x*3 + (matrix_y*max_x as i32)*3) as usize;
+                let index_in_color_vec = (matrix_x*3 + (matrix_y*LEDS_MAX_X as i32)*3) as usize;
                 pixelcolors[index_in_color_vec] = rgb.g;
                 pixelcolors[index_in_color_vec+1] = rgb.r;
                 pixelcolors[index_in_color_vec+2] = rgb.b;
@@ -81,19 +83,19 @@ pub fn paint_element(pixelcolors: &mut Vec<u8>, graphic: &Vec<Vec<Option<RGB>>>,
     }
 }
 
-pub fn paint_element_rgb(pixelcolors: &mut Vec<RGB>, graphic: &Vec<Vec<Option<RGB>>>, x_offset: i32, y_offset: i32, max_x: usize, max_y: usize) {
+pub fn paint_element_rgb(pixelcolors: &mut Vec<RGB>, graphic: &Vec<Vec<Option<RGB>>>, x_offset: i32, y_offset: i32) {
     let graphic_width = graphic[0].len();
     let graphic_height = graphic.len();
 
-    if x_offset > max_x as i32 || y_offset > max_y as i32 {
+    if x_offset > LEDS_MAX_X as i32 || y_offset > LEDS_MAX_Y as i32 {
         return //placing the graphic outside of the matrix on the right or top
     }
     if (x_offset + graphic_width as i32) < 0 || (y_offset + graphic_height as i32) < 0 {
         return
     }
 
-    let room_for_drawing_x = max_x as i32 - x_offset;
-    let room_for_drawing_y = max_y as i32 - y_offset;
+    let room_for_drawing_x = LEDS_MAX_X as i32 - x_offset;
+    let room_for_drawing_y = LEDS_MAX_X as i32 - y_offset;
 
     for (i, row) in graphic.iter().rev().enumerate() { //start rendering at bottom of graphic while all current elements are defined top-down
         for col in 0.. (graphic_width) { //each x
@@ -113,11 +115,11 @@ pub fn paint_element_rgb(pixelcolors: &mut Vec<RGB>, graphic: &Vec<Vec<Option<RG
             }
 
             if serpentine { // serpentine row
-                matrix_x = max_x as i32 - 1 - x_offset - col as i32;
+                matrix_x = LEDS_MAX_X as i32 - 1 - x_offset - col as i32;
             }
 
             if let Some(rgb) = &row[col] {
-                let index_in_color_vec = (matrix_x + (matrix_y*max_x as i32)) as usize;
+                let index_in_color_vec = (matrix_x + (matrix_y*LEDS_MAX_X as i32)) as usize;
                 pixelcolors[index_in_color_vec] = RGB{r:rgb.r, b: rgb.b, g:rgb.g}
             }
         }
