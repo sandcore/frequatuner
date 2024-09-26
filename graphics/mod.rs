@@ -1,7 +1,7 @@
 pub struct RGB {
-    r: u8,
-    g: u8,
-    b: u8,
+    pub r: u8,
+    pub g: u8,
+    pub b: u8,
 }
 
 pub fn paint_element(pixelcolors: &mut Vec<u8>, graphic: &Vec<Vec<Option<RGB>>>, x_offset: i32, y_offset: i32, max_x: usize, max_y: usize) {
@@ -49,29 +49,66 @@ pub fn paint_element(pixelcolors: &mut Vec<u8>, graphic: &Vec<Vec<Option<RGB>>>,
     }
 }
 
-
-pub fn c() -> Vec<Vec<Option<u8>>> {
-vec![
-        vec![Some(1),Some(1), Some(1)],
-        vec![Some(1), Some(1), Some(1)],
-        vec![Some(1), Some(1), Some(1)],
-        vec![Some(1), Some(1), Some(1)],
+pub fn vecvecbool_eq() -> Vec<Vec<bool>> {
+    vec![
+        vec![true, true, false, true, true, true],
+        vec![true, false, false, true, false, true],
+        vec![true, true, false, true, true, true],
+        vec![true, false, false, false, false, true],
+        vec![true, true, false, false, false, true],
     ]
+}
+
+pub fn vecvecbool_tuner() -> Vec<Vec<bool>> {
+    vec![
+        vec![true, true, true, false, false, false],
+        vec![false, true, false, false, false, false],
+        vec![false, true, false, true, false, true],
+        vec![false, false, false, true, false, true],
+        vec![false, false, false, true, true, true],
+    ]
+}
+
+pub fn convert_vecvecbool_to_xy_rgb_vec(src: Vec<Vec<bool>>, color: RGB) -> Vec<Vec<Option<RGB>>> {
+    let rows = src.len();
+    let cols = src[0].len();
+
+    let mut dest = vec![];
+    for _ in 0.. rows {
+        let mut fill_row = vec![];
+        for _ in 0.. cols {
+            fill_row.push(None);
+        }
+        dest.push(fill_row);
+    }
+
+    for row in 0.. rows {
+        for col in 0.. cols {
+            if src[row][col] {
+                dest[row][col] = Some(RGB{r: color.r, g: color.g, b:color.b});
+            }
+            else {
+                dest[row][col] = None;
+            }
+        }
+    }
+    dest
 }
 
 pub fn vecvec_one_up() -> Vec<Vec<Option<RGB>>> {
     let one_up = one_up();
-    convert_flatvec_to_xyvec(one_up, 48, 16, Some(RGB{r:233u8, g:233u8, b:233u8}))
+    convert_flatvec_to_xy_rgb_vec(one_up, 16, 16, Some(RGB{r:233u8, g:233u8, b:233u8}))
 }
 
 // paint_element works on a vec of vecs x*y, convert flattened representation to that
 // alpha_num is the RGB value in the bytes that corresponds to a transparent pixel, optionally
-fn convert_flatvec_to_xyvec( src: Vec<u8>, image_width: usize, image_height: usize, alpha: Option<RGB> ) -> Vec<Vec<Option<RGB>>> {
-    let mut dest_vec = vec![vec![0;image_width]; image_height];
+fn convert_flatvec_to_xy_rgb_vec( src: Vec<u8>, image_width: usize, image_height: usize, alpha: Option<RGB> ) -> Vec<Vec<Option<RGB>>> {
+    let num_colors_width = image_width*3;
+    let mut dest_vec = vec![vec![0;num_colors_width]; image_height];
 
     for i in 0.. image_height {
-        for j in 0.. image_width {
-            let index_in_src_vec = j + i*image_width;
+        for j in 0.. num_colors_width {
+            let index_in_src_vec = j + i*num_colors_width;
             dest_vec[i][j] = src[index_in_src_vec];
         }
     }
@@ -117,4 +154,18 @@ pub fn one_up() -> Vec<u8> {
         233,233,233,233,233,233,233,233,233,1,0,0,255,254,255,255,254,255,255,255,255,254,254,255,255,255,255,254,255,255,255,255,255,255,255,254,1,1,0,233,233,233,233,233,233,233,233,233,
         233,233,233,233,233,233,233,233,233,233,233,233,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,1,0,1,1,0,233,233,233,233,233,233,233,233,233
     ]
+}
+
+pub fn line( width: usize, color: RGB ) -> Vec<Vec<Option<RGB>>> {
+    let mut row = Vec::with_capacity(width);
+
+    for _ in 0.. width {
+        row.push( Some(RGB{r:color.r, g:color.g, b:color.b}));
+    }
+
+    vec![row]
+}
+
+pub fn dot(color: RGB) -> Vec<Vec<Option<RGB>>> {
+    vec![vec![Some(RGB{r:color.r, g:color.g, b:color.b})]]
 }
