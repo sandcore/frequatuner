@@ -30,7 +30,7 @@ impl AudioProcessor {
     pub fn process(&mut self, unprocessed_audio_value: i32, mode: &EqTunerMode) {
         // getting 4 byte i32 values
         let audio_value = unprocessed_audio_value as f64 / (i32::MAX) as f64; // normalized, between 0 and 1
-        let gain = 2.0; // linejack signal has a fairly low amplitude. Note: tuner gains the signal some more because guitar also gives a low amplitude input.
+        let gain = 2.0; // linejack gives a fairly low amplitude. Note: tuner gains the signal some more because guitar also gives a low amplitude output.
 
         let audio_value_for_process = (audio_value*gain) as f32;
 
@@ -64,7 +64,7 @@ impl VisualProcessor {
                 self.color_vec = self.eq_painter.paint(&audio_processor.frequalizer.eq_bins);
             },
             EqTunerMode::Tuner => {
-                // note_info is optional because the pitch detector is sensitive
+                // note_info is optional because the pitch detector is strict
                 if let Some(note_info) = &audio_processor.tuner.note_info {
                     self.color_vec = self.tuner_painter.paint(note_info);
                 }

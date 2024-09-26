@@ -186,7 +186,7 @@ impl FadedBarsDrawn {
         // equalizer magnitudes displayed as rows on a portrait ledmatrix. Every bin corresponds 1:1 to a led matrix Y.
         for row in 0.. eq_bins.len() {
             //magnitude of frequency bin expressed in number of leds
-            let amount_leds_mag = (LEDS_MAX_X as f32 * eq_bins[row]).ceil().clamp(0.0, LEDS_MAX_X as f32) as u32;
+            let amount_leds_mag = (LEDS_MAX_X as f32 * eq_bins[row]).ceil().clamp(1.0, LEDS_MAX_X as f32) as u32;
 
             let newbar_color = self.get_newbar_color(painter, &eq_bins[row]);
             let line_graphic = super::graphics::line(LEDS_MAX_X, newbar_color);

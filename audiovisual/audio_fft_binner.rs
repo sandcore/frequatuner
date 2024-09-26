@@ -130,7 +130,7 @@ impl ResultBins {
     fn new(num_samples: usize, num_bins: u8, sample_rate: u32) -> ResultBins {
         //set up the edges for the bins
         let min_freq = (sample_rate as f32 / num_samples as f32).max(35.0); // Use 35 hz or the lowest possibly measured freq value, whichever is higher
-        let max_freq = (sample_rate as f32 / 2.0).min(18000.0); // Use 18000 Hz or Nyquist frequency (samp rate/2), whichever is lower
+        let max_freq = (sample_rate as f32 / 2.0).min(1500.0); // Use 18000 Hz or Nyquist frequency (samp rate/2), whichever is lower
 
         let mut edges = Vec::with_capacity(num_bins as usize + 1);
         for i in 0..=num_bins {
