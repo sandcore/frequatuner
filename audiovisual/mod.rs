@@ -2,13 +2,16 @@ use std::i32;
 
 use crate::EqTunerMode;
 
-// mode Equalizer
+// mode Equalizer processing
 mod audio_fft_binner;
 mod visual_bins_to_animation;
 
-// mode Tuner
+// mode Tuner processing
 mod audio_tuner;
 mod visual_tuner_painter;
+
+// visual elements and rendering
+pub mod graphics;
 
 // The audioprocessor fills either the buffer for equalizer or the buffer for tuner depending on mode
 pub struct AudioProcessor {

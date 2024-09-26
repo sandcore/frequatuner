@@ -1,4 +1,5 @@
 use pitch_detector::{core::NoteName, note::NoteDetectionResult};
+use super::graphics::RGB;
 
 /*
 Based on a NoteDetectionResult from pitch_detector crate. One future refactor might be to keep an enum of interface elements so their types can be passed around easily and checked, 
@@ -31,12 +32,6 @@ pub struct NoteDetectionResult
     /// [`MAX_CENTS_OFFSET`](crate::core::constants::MAX_CENTS_OFFSET).
     pub in_tune: bool,
 */
-
-struct RGB {
-    r: u8,
-    g: u8,
-    b: u8,
-}
 
 /*
 Painter keeps some general state and runs the steps to draw layers.

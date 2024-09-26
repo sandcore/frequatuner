@@ -1,7 +1,33 @@
+/*
+
+*/
+
 pub struct RGB {
     pub r: u8,
     pub g: u8,
     pub b: u8,
+}
+impl RGB {
+    pub fn subtract(&mut self, other_color: RGB) -> [i16; 3] {
+        let minuends = [self.r, self.g, self.b];
+        let subtrahends = [other_color.r, other_color.g, other_color.b];
+        let mut diff_array = [0; 3];
+
+        for (i, minuend) in minuends.iter().enumerate() {
+            let diff = *minuend as i16 - subtrahends[i] as i16;
+            diff_array[i] = diff;
+        }
+
+        diff_array
+    }
+
+    pub fn return_new_applied_diff(&mut self, diff: [i16;3]) -> RGB {
+        RGB {
+            r: (self.r as i16 + diff[0]) as u8,
+            g: (self.g as i16 + diff[1]) as u8,
+            b: (self.b as i16 + diff[2]) as u8
+        }
+    }
 }
 
 pub fn paint_element(pixelcolors: &mut Vec<u8>, graphic: &Vec<Vec<Option<RGB>>>, x_offset: i32, y_offset: i32, max_x: usize, max_y: usize) {

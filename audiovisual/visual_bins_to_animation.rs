@@ -1,4 +1,5 @@
 use std::f32::consts::PI;
+use super::graphics::RGB;
 
 /*
 Based on a set of frequency bins with f32 values, an animation is made showing the magnitude of the frequency ranges on the led matrix.
@@ -6,35 +7,6 @@ Based on a set of frequency bins with f32 values, an animation is made showing t
 This does NOT take into account when number of frequency bins is not the same as max_y on ledmatrix, it is specifically made for my
 aliexpress ledmatrix that takes G R B (for some reason) and serpentines every other row.
 */
-
-struct RGB {
-    r: u8,
-    g: u8,
-    b: u8,
-}
-impl RGB {
-    fn subtract(&mut self, other_color: RGB) -> [i16; 3] {
-        let minuends = [self.r, self.g, self.b];
-        let subtrahends = [other_color.r, other_color.g, other_color.b];
-        let mut diff_array = [0; 3];
-
-        for (i, minuend) in minuends.iter().enumerate() {
-            let diff = *minuend as i16 - subtrahends[i] as i16;
-            diff_array[i] = diff;
-        }
-
-        diff_array
-    }
-
-    fn return_new_applied_diff(&mut self, diff: [i16;3]) -> RGB {
-        RGB {
-            r: (self.r as i16 + diff[0]) as u8,
-            g: (self.g as i16 + diff[1]) as u8,
-            b: (self.b as i16 + diff[2]) as u8
-        }
-    }
-}
-
 
 /*
 Painter keeps some general state and runs the animation process.
