@@ -1,4 +1,3 @@
-use std::io::empty;
 use std::sync::atomic::{AtomicBool, Ordering}; // for the interrupt handling
 use std::time::{Duration, SystemTime};
 
@@ -9,10 +8,18 @@ mod esp32s3_hw; // driver wrappers for confirmed working on-board and connected 
 use esp32s3_hw::Esp32S3c1;
 
 mod audiovisual; // process audio feed and output to led matrix
+use audiovisual::graphics::*;
 
 pub enum EqTunerMode {
     Equalizer,
     Tuner
+}
+
+// Tracks the interrupt on the boot button
+static BOOTTON_PRESSED: AtomicBool = AtomicBool::new(false);
+
+fn boot_button_callback() {
+    BOOTTON_PRESSED.store(true, Ordering::Relaxed);
 }
 
 /*
@@ -32,12 +39,12 @@ struct EqTuner<'a> {
     audio_processor: audiovisual::AudioProcessor,
     visual_processor: audiovisual::VisualProcessor,
 
-    sample_rate: u32,
-    num_frequency_bins: u8,
     frame_duration: Duration, // ledmatrix starts glitching if this is too short 
     last_visual_update: SystemTime,
     ledmatrix_max_x: usize,
-    ledmatrix_max_y: usize
+    ledmatrix_max_y: usize,
+
+    switch_element_pos: i32 // for the switch screen animation
 }
 
 impl <'a>EqTuner<'a> {
@@ -67,12 +74,11 @@ impl <'a>EqTuner<'a> {
             mode_button_driver,
             audio_processor,
             visual_processor,
-            sample_rate,
-            num_frequency_bins,
-            frame_duration: Duration::from_micros(60000), // 16 fps is more than enough. Won't be exact due to execution times but should be a fast enough constant refresh rate that doesnt glitch the matrix
+            frame_duration: Duration::from_micros(100000), // 10 fps is more than enough. Won't be exact due to execution times but should be a fast enough constant refresh rate that doesnt glitch the matrix
             last_visual_update: SystemTime::now(),
             ledmatrix_max_x,
-            ledmatrix_max_y
+            ledmatrix_max_y,
+            switch_element_pos: -16 // start outside
         }
     }
 
@@ -122,12 +128,11 @@ impl <'a>EqTuner<'a> {
     }
 
     fn display_switch_screen(&mut self) {
-        let graphic = vec![4u8; self.ledmatrix_max_x*self.ledmatrix_max_y*3];
-        let mode_init_screen = match self.mode {
+        let mut mode_init_screen = match self.mode {
             EqTunerMode::Equalizer => {
                 let mut empty_canvas = Vec::with_capacity(self.ledmatrix_max_x*self.ledmatrix_max_y);
                 for _ in 0..(self.ledmatrix_max_x*self.ledmatrix_max_y) {
-                    empty_canvas.append(&mut vec![1,1,5]);
+                    empty_canvas.append(&mut vec![1,30,1]);
                 }
                 empty_canvas
             },
@@ -140,16 +145,49 @@ impl <'a>EqTuner<'a> {
             }
         };
 
-        self.ledmatrix_driver.write(&graphic).ok();
-        self.visual_processor.color_vec = mode_init_screen; // replace with an initial screen after switch
-        FreeRtos::delay_ms(1000) // bask in the glory of the switch screen
+        let mut mode_init_animation = mode_init_screen.clone();
+        let one_up_graph = vecvec_one_up();
+        let eq_graph = convert_vecvecbool_to_xy_rgb_vec(vecvecbool_eq(), RGB{r:0, g:70, b:50});
+        let tun_graph = convert_vecvecbool_to_xy_rgb_vec(vecvecbool_tuner(), RGB{r:0, g:70, b:50});
+
+        let mut animation_bg = mode_init_animation.clone();
+
+        match self.mode {
+            EqTunerMode::Equalizer => {
+                for _ in 0..24 {
+                    self.switch_element_pos -= 1;
+                    paint_element(&mut animation_bg, &one_up_graph, self.switch_element_pos, 2, self.ledmatrix_max_x, self.ledmatrix_max_y);
+                    paint_element(&mut animation_bg, &eq_graph, 1, 23, self.ledmatrix_max_x, self.ledmatrix_max_y);
+
+                    self.visual_processor.color_vec = animation_bg.clone(); // replace with an initial screen after switch
+                    self.display_ledmatrix();
+                    animation_bg = mode_init_animation.clone();
+                    FreeRtos::delay_ms(100) // bask in the glory of the switch screen
+                }
+            },
+            EqTunerMode::Tuner => {
+                for _ in 0..24 {
+                    self.switch_element_pos += 1;
+                    paint_element(&mut mode_init_animation, &one_up_graph, self.switch_element_pos, 2, self.ledmatrix_max_x, self.ledmatrix_max_y);
+                    paint_element(&mut mode_init_animation, &tun_graph, 1, 23, self.ledmatrix_max_x, self.ledmatrix_max_y);
+                    
+                    self.visual_processor.color_vec = mode_init_animation.clone(); // replace with an initial screen after switch
+                    self.display_ledmatrix();
+                    mode_init_animation = mode_init_screen.clone();
+                    FreeRtos::delay_ms(100) // bask in the glory of the switch screen
+                }
+            }
+        }
+        let line_graph = line(self.ledmatrix_max_x, RGB{r:255, g:216, b:0});
+        let dot_graph = dot(RGB{r:40, g: 0, b: 0});
+        paint_element(&mut mode_init_screen, &line_graph, 0, 16, self.ledmatrix_max_x, self.ledmatrix_max_y);
+        paint_element(&mut mode_init_screen, &dot_graph, 2, 20, self.ledmatrix_max_x, self.ledmatrix_max_y);
+        paint_element(&mut mode_init_screen, &dot_graph, 4, 20, self.ledmatrix_max_x, self.ledmatrix_max_y);
+        paint_element(&mut mode_init_screen, &dot_graph, 6, 20, self.ledmatrix_max_x, self.ledmatrix_max_y);
+
+        self.visual_processor.color_vec = mode_init_screen.clone(); // replace with an initial screen after switch
+        FreeRtos::delay_ms(200) // bask in the glory of the switch screen
     }
-}
-
-static BOOTTON_PRESSED: AtomicBool = AtomicBool::new(false);
-
-fn boot_button_callback() {
-    BOOTTON_PRESSED.store(true, Ordering::Relaxed);
 }
 
 fn main() {
