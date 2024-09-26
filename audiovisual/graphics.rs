@@ -1,5 +1,6 @@
 /*
-
+Graphical elements and their rendering. Defined some elements differently than others, depending on their origin. 
+This module has conversion functions for the different definitions so the paint function can work with 1 input type.
 */
 
 pub struct RGB {
@@ -30,6 +31,15 @@ impl RGB {
     }
 }
 
+// this could be greatly expanded upon and make code relating to lines and offsets for GUI elements nicer, but for now this only tracks three guitar note types
+pub enum InterfaceElement {
+    DetectedNote,
+    PreviousNote,
+    NextNote
+}
+
+
+
 pub fn paint_element(pixelcolors: &mut Vec<u8>, graphic: &Vec<Vec<Option<RGB>>>, x_offset: i32, y_offset: i32, max_x: usize, max_y: usize) {
     let graphic_width = graphic[0].len();
     let graphic_height = graphic.len();
@@ -44,7 +54,7 @@ pub fn paint_element(pixelcolors: &mut Vec<u8>, graphic: &Vec<Vec<Option<RGB>>>,
     let room_for_drawing_x = max_x as i32 - x_offset;
     let room_for_drawing_y = max_y as i32 - y_offset;
 
-    for (i, row) in graphic.iter().rev().enumerate() { //start rendering at bottom of graphic
+    for (i, row) in graphic.iter().rev().enumerate() { //start rendering at bottom of graphic while all current elements are defined top-down
         for col in 0.. (graphic_width) { //each x
             let mut serpentine = false;
             if (i as i32+y_offset) % 2 == 1 {
@@ -70,6 +80,49 @@ pub fn paint_element(pixelcolors: &mut Vec<u8>, graphic: &Vec<Vec<Option<RGB>>>,
                 pixelcolors[index_in_color_vec] = rgb.g;
                 pixelcolors[index_in_color_vec+1] = rgb.r;
                 pixelcolors[index_in_color_vec+2] = rgb.b;
+            }
+        }
+    }
+}
+
+pub fn paint_element_rgb(pixelcolors: &mut Vec<RGB>, graphic: &Vec<Vec<Option<RGB>>>, x_offset: i32, y_offset: i32, max_x: usize, max_y: usize) {
+    let graphic_width = graphic[0].len();
+    let graphic_height = graphic.len();
+
+    if x_offset > max_x as i32 || y_offset > max_y as i32 {
+        return //placing the graphic outside of the matrix on the right or top
+    }
+    if (x_offset + graphic_width as i32) < 0 || (y_offset + graphic_height as i32) < 0 {
+        return
+    }
+
+    let room_for_drawing_x = max_x as i32 - x_offset;
+    let room_for_drawing_y = max_y as i32 - y_offset;
+
+    for (i, row) in graphic.iter().rev().enumerate() { //start rendering at bottom of graphic while all current elements are defined top-down
+        for col in 0.. (graphic_width) { //each x
+            let mut serpentine = false;
+            if (i as i32+y_offset) % 2 == 1 {
+                serpentine = true;
+            }
+
+            let mut matrix_x = x_offset + col as i32;
+            let matrix_y = y_offset + i as i32;
+
+            if (col+1) > room_for_drawing_x as usize || (i+1) > room_for_drawing_y as usize {
+                continue
+            }
+            if matrix_x < 0 || matrix_y < 0 {
+                continue
+            }
+
+            if serpentine { // serpentine row
+                matrix_x = max_x as i32 - 1 - x_offset - col as i32;
+            }
+
+            if let Some(rgb) = &row[col] {
+                let index_in_color_vec = (matrix_x + (matrix_y*max_x as i32)) as usize;
+                pixelcolors[index_in_color_vec] = RGB{r:rgb.r, b: rgb.b, g:rgb.g}
             }
         }
     }

@@ -1,5 +1,6 @@
+use fundsp::funutd::color;
 use pitch_detector::{core::NoteName, note::NoteDetectionResult};
-use super::graphics::RGB;
+use super::graphics::{RGB, InterfaceElement};
 
 /*
 Based on a NoteDetectionResult from pitch_detector crate. One future refactor might be to keep an enum of interface elements so their types can be passed around easily and checked, 
@@ -129,12 +130,8 @@ impl BlankCanvas {
 
     fn draw_baseline(mut self) -> BaseLined {
         let baseline_row = (self.max_y as f32 / 2.0).round() as usize; // draw line starting at light 1 in row 17 (index 16), fixed around the center of the vertically placed ledstrip
-        let color_vec_index_baseline_row = baseline_row*self.max_x;
-
-        //If baseline is chosen on a serpentine row the for loop needs to be changed (see next state for a line draw loop with serpentine) 
-        for i in 0.. self.max_x {
-            self.color_vec[i + color_vec_index_baseline_row] = RGB{r: self.base_line_color.r, g:self.base_line_color.g, b: self.base_line_color.b};
-        }
+        let line_graphic = super::graphics::line(self.max_x, RGB{r: self.base_line_color.r, g:self.base_line_color.g, b: self.base_line_color.b});
+        super::graphics::paint_element_rgb(&mut self.color_vec, &line_graphic, 0i32, baseline_row as i32, self.max_x, self.max_y);
 
         BaseLined {
             detected_line_color: RGB{r:199,g:129,b:19},
@@ -176,13 +173,6 @@ impl BaseLined {
             start_row_col_next: (25, 1)
         }
     }
-}
-
-// this could be greatly expanded upon and make code relating to lines and offsets for GUI elements nicer, but for now this only tracks three guitar note types
-enum InterfaceElement {
-    DetectedNote,
-    PreviousNote,
-    NextNote
 }
 
 impl DetectedLineDrawn {
