@@ -15,6 +15,13 @@ pub enum EqTunerMode {
     Tuner
 }
 
+// Tracks the interrupt on the boot button
+static BOOTTON_PRESSED: AtomicBool = AtomicBool::new(false);
+
+fn boot_button_callback() {
+    BOOTTON_PRESSED.store(true, Ordering::Relaxed);
+}
+
 /*
 EqTuner keeps track of if we're in equalizer or tuner mode, contains the drivers that are used and is a centralized spot for 
 initializing some informational variables relating to the specific project / hardware used.
@@ -171,8 +178,8 @@ impl <'a>EqTuner<'a> {
                 }
             }
         }
-        let line_graph = audiovisual::graphics::line(self.ledmatrix_max_x, RGB{r:255, g:216, b:0});
-        let dot_graph = audiovisual::graphics::dot(RGB{r:40, g: 0, b: 0});
+        let line_graph = line(self.ledmatrix_max_x, RGB{r:255, g:216, b:0});
+        let dot_graph = dot(RGB{r:40, g: 0, b: 0});
         paint_element(&mut mode_init_screen, &line_graph, 0, 16, self.ledmatrix_max_x, self.ledmatrix_max_y);
         paint_element(&mut mode_init_screen, &dot_graph, 2, 20, self.ledmatrix_max_x, self.ledmatrix_max_y);
         paint_element(&mut mode_init_screen, &dot_graph, 4, 20, self.ledmatrix_max_x, self.ledmatrix_max_y);
@@ -181,12 +188,6 @@ impl <'a>EqTuner<'a> {
         self.visual_processor.color_vec = mode_init_screen.clone(); // replace with an initial screen after switch
         FreeRtos::delay_ms(200) // bask in the glory of the switch screen
     }
-}
-
-static BOOTTON_PRESSED: AtomicBool = AtomicBool::new(false);
-
-fn boot_button_callback() {
-    BOOTTON_PRESSED.store(true, Ordering::Relaxed);
 }
 
 fn main() {
