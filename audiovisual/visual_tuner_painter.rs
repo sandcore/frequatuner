@@ -1,6 +1,5 @@
-use fundsp::funutd::color;
 use pitch_detector::{core::NoteName, note::NoteDetectionResult};
-use super::graphics::{RGB, InterfaceElement};
+use super::graphics::{RGB, GraphicalNote};
 
 /*
 Based on a NoteDetectionResult from pitch_detector crate. One future refactor might be to keep an enum of interface elements so their types can be passed around easily and checked, 
@@ -198,119 +197,6 @@ impl NotesDrawn {
     fn output(self) -> Vec<u8> {
         // led matrix needs a vec of separate GRB values
         self.color_vec.into_iter().flat_map(|rgb| [rgb.g, rgb.r, rgb.b]).collect()
-    }
-}
-
-/*
-Graphical representations of the musical notes that can be found by NoteDetectionResult
-
-Used pixelmatrices so I could visually "draw" the letters with the true values in the definitions below. Flattened later for processing in output.
-*/
-
-type PixelMatrix = Vec<Vec<bool>>;
-
-// graphical representation of musical notes, max 2x4 pixels
-// drawing NoteDetectionResults from note_detection crate
-// also use the NoteName enum from note_detection crate to have consistency for note names
-
-struct GraphicalNote {
-    matrix: PixelMatrix,
-}
-
-impl GraphicalNote {
-    fn new(note: &NoteName) -> Self {
-        let matrix = match note {
-            NoteName::A => vec![
-                vec![false, true, false],
-                vec![true, false, true],
-                vec![true, true, true],
-                vec![true, false,true],
-            ],
-            NoteName::ASharp => vec![
-                vec![false, false, false, false, false, true, false],
-                vec![false, false, false, false, true, true, true],
-                vec![false, true, false, false, false, true, false],
-                vec![true, false, true, false, false, false, false],
-                vec![true, true, true, false, false, false, false],
-                vec![true, false, true, false, false, false, false],
-            ],
-            NoteName::B => vec![
-                vec![true, true, false],
-                vec![true, false, true],
-                vec![true, true, false],
-                vec![true, false, true],
-                vec![true, true, false]
-            ],
-            NoteName::C => vec![
-                vec![false, true, true],
-                vec![true, false, false],
-                vec![true, false, false],
-                vec![false, true, true],
-            ],
-            NoteName::CSharp => vec![
-                vec![false, false, false, false, false, true, false],
-                vec![false, true, true, false, true, true, true],
-                vec![true, false, false, false, false, true, false],
-                vec![true, false, false, false, false, false, false],
-                vec![true, false, false, false, false, false, false],
-                vec![false, true, true, false, false, false, false],
-            ],
-            NoteName::D => vec![
-                vec![true, true, false],
-                vec![true, false, true],
-                vec![true, false, true],
-                vec![true, true, false],
-            ],
-            NoteName::DSharp => vec![
-                vec![false, false, false, false, false, true, false],
-                vec![true, true, false, false, true, true, true],
-                vec![true, false, true, false, false, true, false],
-                vec![true, false, true, false, false, false, false],
-                vec![true, true, false, false, false, false, false],
-                vec![false, false, false, false, false, false, false],
-            ],
-            NoteName::E => vec![
-                vec![true, true, true],
-                vec![true, false, false],
-                vec![true, true, false],
-                vec![true, false, false],
-                vec![true, true, true]
-            ],
-            NoteName::F => vec![
-                vec![true, true, true],
-                vec![true, false, false],
-                vec![true, true, true],
-                vec![true, false, false],
-                vec![true, false, false],
-            ],
-            NoteName::FSharp => vec![
-                vec![false, false, false, false, false, true, false],
-                vec![true, true, true, false, true, true, true],
-                vec![true, false, false, false, false, true, false],
-                vec![true, true, true, false, false, false, false],
-                vec![true, false, false, false, false, false, false],
-                vec![true, false, false, false, false, false, false],
-            ],
-            NoteName::G => vec![
-                vec![false, true, true, false],
-                vec![true, false, false, false],
-                vec![true, false, true, true],
-                vec![true, false, false, true],
-                vec![false, true, true, false]
-            ],
-            NoteName::GSharp => vec![
-                vec![false, false, false, false, false, true, false],
-                vec![false, true, true, false, true, true, true],
-                vec![true, false, false, false, false, true, false],
-                vec![true, false, true, true, false, false, false],
-                vec![true, false, false, true, false, false, false],
-                vec![false, true, true, false, false, false, false],
-            ]
-        };
-
-        GraphicalNote {
-            matrix,
-        }
     }
 }
 

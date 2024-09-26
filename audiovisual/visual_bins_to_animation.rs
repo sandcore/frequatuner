@@ -197,40 +197,15 @@ impl FadedBarsDrawn {
             if row % 2 == 0 { // on a serpentine row, the ledmatrix renders from last led to the first 
                 serpentine = true;
             }
-            self.draw_row(painter, row as u32, amount_leds_mag, serpentine, painter.led_matrix_max_x as u32, &eq_bins[row]);
+
+            let newbar_color = self.get_newbar_color(painter, &eq_bins[row]);
+            let line_graphic = super::graphics::line(painter.led_matrix_max_x, newbar_color);
+            let line_shift = painter.led_matrix_max_x as u32 - amount_leds_mag;
+            super::graphics::paint_element_rgb(&mut self.color_vec, &line_graphic, line_shift as i32, row as i32, painter.led_matrix_max_x, painter.led_matrix_max_y);
         }
 
         NewBarsDrawn {
             color_vec: self.color_vec
-        }
-    }
-
-    fn draw_row(&mut self, painter: &mut Painter, row_num: u32, magnitude: u32, serpentine: bool, row_size: u32, bin_amplitude: &f32) {
-        if magnitude == 0 {
-            return // there is no bar to draw
-        }
-        let row_indexes_size = row_size-1;
-        let magni_as_index = magnitude - 1;
-        let first_led_of_row_num_index = row_num * row_size;
-        let color_vec_start_index;
-        let color_vec_end_index;
-
-        match serpentine { // inverse magnitude drawing on serpentine rows
-            false => {
-                color_vec_start_index = first_led_of_row_num_index;
-                color_vec_end_index = first_led_of_row_num_index + magni_as_index;
-            },
-            true => {
-                color_vec_start_index = first_led_of_row_num_index + row_indexes_size - magni_as_index;
-                color_vec_end_index = first_led_of_row_num_index + row_indexes_size;
-            }
-        }
-
-        let newbar_color = self.get_newbar_color(painter, bin_amplitude);
-
-        for i in color_vec_start_index as usize..=color_vec_end_index as usize {
-            painter.bar_ghosts[i] = Some(RGB{r:newbar_color.r, g:newbar_color.g, b:newbar_color.b}); // next loop start fading these new bar leds again from full
-            self.color_vec[i] = RGB{r:newbar_color.r, g:newbar_color.g, b:newbar_color.b};
         }
     }
 

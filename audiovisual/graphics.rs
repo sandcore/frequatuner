@@ -1,6 +1,11 @@
+use pitch_detector::core::NoteName;
+
 /*
 Graphical elements and their rendering. Defined some elements differently than others, depending on their origin. 
 This module has conversion functions for the different definitions so the paint function can work with 1 input type.
+
+Could make this more fancy with a better interface but that wouldn't help current demands. If 2d rendering demands increase a point will
+be reached where using a full featured public 2D crate is the better choice.
 */
 
 pub struct RGB {
@@ -30,15 +35,6 @@ impl RGB {
         }
     }
 }
-
-// this could be greatly expanded upon and make code relating to lines and offsets for GUI elements nicer, but for now this only tracks three guitar note types
-pub enum InterfaceElement {
-    DetectedNote,
-    PreviousNote,
-    NextNote
-}
-
-
 
 pub fn paint_element(pixelcolors: &mut Vec<u8>, graphic: &Vec<Vec<Option<RGB>>>, x_offset: i32, y_offset: i32, max_x: usize, max_y: usize) {
     let graphic_width = graphic[0].len();
@@ -128,26 +124,6 @@ pub fn paint_element_rgb(pixelcolors: &mut Vec<RGB>, graphic: &Vec<Vec<Option<RG
     }
 }
 
-pub fn vecvecbool_eq() -> Vec<Vec<bool>> {
-    vec![
-        vec![true, true, false, true, true, true],
-        vec![true, false, false, true, false, true],
-        vec![true, true, false, true, true, true],
-        vec![true, false, false, false, false, true],
-        vec![true, true, false, false, false, true],
-    ]
-}
-
-pub fn vecvecbool_tuner() -> Vec<Vec<bool>> {
-    vec![
-        vec![true, true, true, false, false, false],
-        vec![false, true, false, false, false, false],
-        vec![false, true, false, true, false, true],
-        vec![false, false, false, true, false, true],
-        vec![false, false, false, true, true, true],
-    ]
-}
-
 pub fn convert_vecvecbool_to_xy_rgb_vec(src: Vec<Vec<bool>>, color: RGB) -> Vec<Vec<Option<RGB>>> {
     let rows = src.len();
     let cols = src[0].len();
@@ -172,11 +148,6 @@ pub fn convert_vecvecbool_to_xy_rgb_vec(src: Vec<Vec<bool>>, color: RGB) -> Vec<
         }
     }
     dest
-}
-
-pub fn vecvec_one_up() -> Vec<Vec<Option<RGB>>> {
-    let one_up = one_up();
-    convert_flatvec_to_xy_rgb_vec(one_up, 16, 16, Some(RGB{r:233u8, g:233u8, b:233u8}))
 }
 
 // paint_element works on a vec of vecs x*y, convert flattened representation to that
@@ -214,6 +185,15 @@ fn convert_flatvec_to_xy_rgb_vec( src: Vec<u8>, image_width: usize, image_height
     result
 }
 
+/*
+Some definitions of graphical elements below here.
+*/
+
+pub fn vecvec_one_up() -> Vec<Vec<Option<RGB>>> {
+    let one_up = one_up();
+    convert_flatvec_to_xy_rgb_vec(one_up, 16, 16, Some(RGB{r:233u8, g:233u8, b:233u8}))
+}
+
 pub fn one_up() -> Vec<u8> {
     vec![
         233,233,233,233,233,233,233,233,233,233,233,233,233,233,233,0,0,0,1,0,1,1,0,1,0,0,0,0,0,0,233,233,233,233,233,233,233,233,233,233,233,233,233,233,233,233,233,233,
@@ -247,4 +227,137 @@ pub fn line( width: usize, color: RGB ) -> Vec<Vec<Option<RGB>>> {
 
 pub fn dot(color: RGB) -> Vec<Vec<Option<RGB>>> {
     vec![vec![Some(RGB{r:color.r, g:color.g, b:color.b})]]
+}
+
+/*
+Graphical representations of the musical notes that can be found by NoteDetectionResult
+
+Used pixelmatrices so I could visually "draw" the letters with the true values in the definitions below. Flattened later for processing in output.
+*/
+
+type PixelMatrix = Vec<Vec<bool>>;
+
+// graphical representation of musical notes, max 2x4 pixels
+// drawing NoteDetectionResults from note_detection crate
+// also use the NoteName enum from note_detection crate to have consistency for note names
+
+pub struct GraphicalNote {
+    pub matrix: PixelMatrix,
+}
+
+impl GraphicalNote {
+    pub fn new(note: &NoteName) -> Self {
+        let matrix = match note {
+            NoteName::A => vec![
+                vec![false, true, false],
+                vec![true, false, true],
+                vec![true, true, true],
+                vec![true, false,true],
+            ],
+            NoteName::ASharp => vec![
+                vec![false, false, false, false, false, true, false],
+                vec![false, false, false, false, true, true, true],
+                vec![false, true, false, false, false, true, false],
+                vec![true, false, true, false, false, false, false],
+                vec![true, true, true, false, false, false, false],
+                vec![true, false, true, false, false, false, false],
+            ],
+            NoteName::B => vec![
+                vec![true, true, false],
+                vec![true, false, true],
+                vec![true, true, false],
+                vec![true, false, true],
+                vec![true, true, false]
+            ],
+            NoteName::C => vec![
+                vec![false, true, true],
+                vec![true, false, false],
+                vec![true, false, false],
+                vec![false, true, true],
+            ],
+            NoteName::CSharp => vec![
+                vec![false, false, false, false, false, true, false],
+                vec![false, true, true, false, true, true, true],
+                vec![true, false, false, false, false, true, false],
+                vec![true, false, false, false, false, false, false],
+                vec![true, false, false, false, false, false, false],
+                vec![false, true, true, false, false, false, false],
+            ],
+            NoteName::D => vec![
+                vec![true, true, false],
+                vec![true, false, true],
+                vec![true, false, true],
+                vec![true, true, false],
+            ],
+            NoteName::DSharp => vec![
+                vec![false, false, false, false, false, true, false],
+                vec![true, true, false, false, true, true, true],
+                vec![true, false, true, false, false, true, false],
+                vec![true, false, true, false, false, false, false],
+                vec![true, true, false, false, false, false, false],
+                vec![false, false, false, false, false, false, false],
+            ],
+            NoteName::E => vec![
+                vec![true, true, true],
+                vec![true, false, false],
+                vec![true, true, false],
+                vec![true, false, false],
+                vec![true, true, true]
+            ],
+            NoteName::F => vec![
+                vec![true, true, true],
+                vec![true, false, false],
+                vec![true, true, true],
+                vec![true, false, false],
+                vec![true, false, false],
+            ],
+            NoteName::FSharp => vec![
+                vec![false, false, false, false, false, true, false],
+                vec![true, true, true, false, true, true, true],
+                vec![true, false, false, false, false, true, false],
+                vec![true, true, true, false, false, false, false],
+                vec![true, false, false, false, false, false, false],
+                vec![true, false, false, false, false, false, false],
+            ],
+            NoteName::G => vec![
+                vec![false, true, true, false],
+                vec![true, false, false, false],
+                vec![true, false, true, true],
+                vec![true, false, false, true],
+                vec![false, true, true, false]
+            ],
+            NoteName::GSharp => vec![
+                vec![false, false, false, false, false, true, false],
+                vec![false, true, true, false, true, true, true],
+                vec![true, false, false, false, false, true, false],
+                vec![true, false, true, true, false, false, false],
+                vec![true, false, false, true, false, false, false],
+                vec![false, true, true, false, false, false, false],
+            ]
+        };
+
+        GraphicalNote {
+            matrix,
+        }
+    }
+}
+
+pub fn vecvecbool_eq() -> Vec<Vec<bool>> {
+    vec![
+        vec![true, true, false, true, true, true],
+        vec![true, false, false, true, false, true],
+        vec![true, true, false, true, true, true],
+        vec![true, false, false, false, false, true],
+        vec![true, true, false, false, false, true],
+    ]
+}
+
+pub fn vecvecbool_tuner() -> Vec<Vec<bool>> {
+    vec![
+        vec![true, true, true, false, false, false],
+        vec![false, true, false, false, false, false],
+        vec![false, true, false, true, false, true],
+        vec![false, false, false, true, false, true],
+        vec![false, false, false, true, true, true],
+    ]
 }
