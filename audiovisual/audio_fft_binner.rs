@@ -1,4 +1,5 @@
 use rustfft::{FftPlanner, num_complex::Complex};
+use fundsp::hacker32::*;
 
 /* 
 Originally this file just called functions sequentially until all the processing steps of the audio_chunks were done.
@@ -27,7 +28,7 @@ impl AudioFrequalizer {
         AudioFrequalizer {
             num_bins,
             fft_planner: FftPlanner::new(),
-            samples_buffer: RawBuffer{samples:vec![]},
+            samples_buffer: RawBuffer::new(),
             samples_max,
             eq_bins
         }
@@ -36,7 +37,7 @@ impl AudioFrequalizer {
     // The caller chooses how many frequency bins are desired. A bigger led matrix will have room to display more bins than a smaller.
     // Number of samples and sample rate determine the min and max frequencies that are measured by the FFT
     pub fn frequalize(&mut self, sample: f32, sample_rate: u32) {
-        self.samples_buffer.samples.push(Complex{re: sample, im: 0.0f32});
+        self.samples_buffer.samples.push(sample);
 
         if self.samples_buffer.samples.len() >= self.samples_max as usize { 
             let num_samples = self.samples_buffer.samples.len();
@@ -45,7 +46,8 @@ impl AudioFrequalizer {
             let res_bins = ResultBins::new(num_samples, self.num_bins, sample_rate);
     
             // do the sequential FFT processing steps
-            let fft_over_samples = self.samples_buffer.fft_transform(&mut self.fft_planner);
+            let mut filters_applied = self.samples_buffer.apply_filters();
+            let fft_over_samples = filters_applied.fft_transform(&mut self.fft_planner);
             let fft_result_bins = fft_over_samples.distribute_fft_to_fixed_bins(res_bins);
             let normalized_fft_result_bins = fft_result_bins.normalize_logarithmic_bins();
             self.eq_bins = normalized_fft_result_bins.fft_resultbins.bins;
@@ -56,12 +58,20 @@ impl AudioFrequalizer {
     }
 }
 
-// raw buffer of samples -> fft applied over samples -> fft distributed to result bins -> fft in result bins normalized
+// raw buffer of samples -> filter -> fft applied over samples -> fft distributed to result bins -> fft in result bins normalized
 // after first state change the raw buffer does NOT get dropped, it is used in the frequalizer as the samples buffer and filled again with new samples
 
 pub struct RawBuffer{
-    pub samples: Vec<Complex<f32>>
+    pub samples: Vec<f32>,
+
+    lowpass_filter: An<FixedSvf<f32, LowpassMode<f32>>>,
+    highpass_filter: An<FixedSvf<f32, HighpassMode<f32>>>,
 }
+
+struct FiltersApplied {
+    filtered_buffer: Vec<Complex<f32>>
+}
+
 struct FFTOverSamples<'a> {
     ffted_samples: &'a mut Vec<Complex<f32>>
 }
@@ -73,11 +83,72 @@ struct NormalizedFFTResultBins{
 }
 
 impl RawBuffer {
-    fn fft_transform(&mut self, fft_planner: &mut FftPlanner<f32>) -> FFTOverSamples {
-        let fft = fft_planner.plan_fft_forward(self.samples.len());
-        fft.process(&mut self.samples);
+    pub fn new() -> RawBuffer {
+        // fundsp filters. 
+        // lowpass and highpass are combined into a composite type
+        // need to be persisted because fundsp filters work by mainining internal state
+        // another reason RawBuffer can't be dropped
 
-        FFTOverSamples{ffted_samples: &mut self.samples}
+        let low_freq = 40.0; //low cutoff frequency for highpass
+        let high_freq = 17000.0; // high cutoff frequency for lowpass
+        let q = 0.707; // "Q factor", 0.707 is supposed to be a good / safe value (:
+
+        let lowpass_filter= lowpass_hz(high_freq, q);
+        let highpass_filter = highpass_hz(low_freq, q);
+
+        RawBuffer {
+            samples: vec![],
+            lowpass_filter,
+            highpass_filter
+        }
+    }
+
+    fn apply_filters(&mut self) -> FiltersApplied {
+        let max_dsp_buffer = 64; // max size of the processing used by fundsp
+        let max_dsp_buffer_idx = 63; // for use in index calculations
+
+        let gain = 2.0f32; // Boost signal because of low amplitude direct guitar input. Second gain on top of the gain in the main processor.
+
+        // Used BufferArrays before integrating all parts of EqTuner project together, and that worked before. But in the integrated project
+        // BufferArrays cause a panic without a source location, guess stack related.
+        let mut dsp_buff = BufferVec::new(1);
+        let mut dsp_lowpassed_values = BufferVec::new(1);
+        let mut dsp_highpassed_values = BufferVec::new(1);
+        
+        let mut output_vec = vec![0f32; self.samples.len()];
+        let mut dspbuffer_counter = 0;
+
+        for (i, sample) in self.samples.iter_mut().enumerate() {
+            let gained_sample = *sample * gain;
+            dsp_buff.buffer_mut().set_f32(0, dspbuffer_counter, gained_sample);
+
+            if dspbuffer_counter == max_dsp_buffer_idx {
+                self.lowpass_filter.process(max_dsp_buffer, &dsp_buff.buffer_ref(), &mut dsp_lowpassed_values.buffer_mut());
+                self.highpass_filter.process(max_dsp_buffer, &dsp_lowpassed_values.buffer_ref(), &mut dsp_highpassed_values.buffer_mut());
+
+                // copy filtered values in the samples from the current index
+                output_vec[(i-max_dsp_buffer_idx)..=i].copy_from_slice(dsp_highpassed_values.buffer_mut().channel_f32(0));
+
+                dspbuffer_counter = 0;
+            }
+            else {
+                dspbuffer_counter += 1;
+            }
+        }
+        let complex_output_vec = output_vec.into_iter().map(|x| Complex::new(x, 0.0)).collect();
+
+        FiltersApplied {
+            filtered_buffer: complex_output_vec
+        }
+    }
+}
+
+impl FiltersApplied {
+    fn fft_transform(&mut self, fft_planner: &mut FftPlanner<f32>) -> FFTOverSamples {
+        let fft = fft_planner.plan_fft_forward(self.filtered_buffer.len());
+        fft.process(&mut self.filtered_buffer);
+
+        FFTOverSamples{ffted_samples: &mut self.filtered_buffer}
     }
 }
 
