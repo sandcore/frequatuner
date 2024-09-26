@@ -70,7 +70,7 @@ impl <'a>EqTuner<'a> {
             visual_processor,
             sample_rate,
             num_frequency_bins,
-            frame_duration: Duration::from_micros(60000), // 16 fps is more than enough. Won't be exact due to execution times but should be a fast enough constant refresh rate that doesnt glitch the matrix
+            frame_duration: Duration::from_micros(100000), // 10 fps is more than enough. Won't be exact due to execution times but should be a fast enough constant refresh rate that doesnt glitch the matrix
             last_visual_update: SystemTime::now(),
             ledmatrix_max_x,
             ledmatrix_max_y
@@ -123,19 +123,19 @@ impl <'a>EqTuner<'a> {
     }
 
     fn display_switch_screen(&mut self) {
-        let graphic = vec![4u8; self.ledmatrix_max_x*self.ledmatrix_max_y*3];
+        let graphic = vec![1u8; self.ledmatrix_max_x*self.ledmatrix_max_y*3];
         let mut mode_init_screen = match self.mode {
             EqTunerMode::Equalizer => {
                 let mut empty_canvas = Vec::with_capacity(self.ledmatrix_max_x*self.ledmatrix_max_y);
                 for _ in 0..(self.ledmatrix_max_x*self.ledmatrix_max_y) {
-                    empty_canvas.append(&mut vec![1,1,5]);
+                    empty_canvas.append(&mut vec![1,30,1]);
                 }
                 empty_canvas
             },
             EqTunerMode::Tuner => {
                 let mut empty_canvas = Vec::with_capacity(self.ledmatrix_max_x*self.ledmatrix_max_y);
                 for _ in 0..(self.ledmatrix_max_x*self.ledmatrix_max_y) {
-                    empty_canvas.append(&mut vec![1,1,5]);
+                    empty_canvas.append(&mut vec![1,30,1]);
                 }
                 empty_canvas
             }
@@ -143,14 +143,37 @@ impl <'a>EqTuner<'a> {
 
         self.ledmatrix_driver.write(&graphic).ok();
         let gr_c = graphics::c();
+        let one_up = graphics::vecvec_one_up();
+        //graphics::paint_element(&mut mode_init_screen, &one_up, 0, 0, self.ledmatrix_max_x, self.ledmatrix_max_y);
         //graphics::paint_element(&mut mode_init_screen, &gr_c, 1, -2, self.ledmatrix_max_x, self.ledmatrix_max_y);
-        println!("------------------- ELEMENT PAINT TEST ---------------------");
-        println!("{:?}", mode_init_screen);
+        //println!("------------------- ELEMENT PAINT TEST ---------------------");
+        //println!("{:?}", mode_init_screen);
         let mut mode_init_initial = mode_init_screen.clone();
-        let mut current_pos_x = 0;
+
+
+        let mut current_pos_x = -16;
+        for i in 0..24 {
+            current_pos_x += 1;
+            graphics::paint_element(&mut mode_init_initial, &one_up, current_pos_x, 0, self.ledmatrix_max_x, self.ledmatrix_max_y);
+            self.visual_processor.color_vec = mode_init_initial.clone(); // replace with an initial screen after switch
+            self.display_ledmatrix();
+            mode_init_initial = mode_init_screen.clone();
+            FreeRtos::delay_ms(100) // bask in the glory of the switch screen
+        }
+        for i in 0..24 {
+            current_pos_x -= 1;
+            graphics::paint_element(&mut mode_init_initial, &one_up, current_pos_x, 0, self.ledmatrix_max_x, self.ledmatrix_max_y);
+            self.visual_processor.color_vec = mode_init_initial.clone(); // replace with an initial screen after switch
+            self.display_ledmatrix();
+            mode_init_initial = mode_init_screen.clone();
+            FreeRtos::delay_ms(100) // bask in the glory of the switch screen
+        }
+
+
+        /*let mut current_pos_x = 0;
         for i in 0..12 {
             current_pos_x += 1;
-            graphics::paint_element(&mut mode_init_initial, &gr_c, current_pos_x, 14, self.ledmatrix_max_x, self.ledmatrix_max_y);
+            graphics::paint_element(&mut mode_init_initial, &gr_c, current_pos_x, 0, self.ledmatrix_max_x, self.ledmatrix_max_y);
             self.visual_processor.color_vec = mode_init_initial.clone(); // replace with an initial screen after switch
             self.display_ledmatrix();
             mode_init_initial = mode_init_screen.clone();
@@ -158,12 +181,12 @@ impl <'a>EqTuner<'a> {
         }
         for i in 0..20 {
             current_pos_x -= 1;
-            graphics::paint_element(&mut mode_init_initial, &gr_c, current_pos_x, 8, self.ledmatrix_max_x, self.ledmatrix_max_y);
+            graphics::paint_element(&mut mode_init_initial, &gr_c, current_pos_x, 0, self.ledmatrix_max_x, self.ledmatrix_max_y);
             self.visual_processor.color_vec = mode_init_initial.clone(); // replace with an initial screen after switch
             self.display_ledmatrix();
             mode_init_initial = mode_init_screen.clone();
             FreeRtos::delay_ms(200) // bask in the glory of the switch screen
-        }
+        }*/
         self.visual_processor.color_vec = mode_init_screen.clone(); // replace with an initial screen after switch
         FreeRtos::delay_ms(1000) // bask in the glory of the switch screen
     }
