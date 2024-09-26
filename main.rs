@@ -178,9 +178,9 @@ impl <'a>EqTuner<'a> {
         let line_graph = audiovisual::graphics::line(self.ledmatrix_max_x, RGB{r:255, g:216, b:0});
         let dot_graph = audiovisual::graphics::dot(RGB{r:40, g: 0, b: 0});
         audiovisual::graphics::paint_element(&mut mode_init_screen, &line_graph, 0, 16, self.ledmatrix_max_x, self.ledmatrix_max_y);
-        audiovisual::graphics::paint_element(&mut mode_init_screen, &dot_graph, 2, 18, self.ledmatrix_max_x, self.ledmatrix_max_y);
-        audiovisual::graphics::paint_element(&mut mode_init_screen, &dot_graph, 4, 18, self.ledmatrix_max_x, self.ledmatrix_max_y);
-        audiovisual::graphics::paint_element(&mut mode_init_screen, &dot_graph, 6, 18, self.ledmatrix_max_x, self.ledmatrix_max_y);
+        audiovisual::graphics::paint_element(&mut mode_init_screen, &dot_graph, 2, 20, self.ledmatrix_max_x, self.ledmatrix_max_y);
+        audiovisual::graphics::paint_element(&mut mode_init_screen, &dot_graph, 4, 20, self.ledmatrix_max_x, self.ledmatrix_max_y);
+        audiovisual::graphics::paint_element(&mut mode_init_screen, &dot_graph, 6, 20, self.ledmatrix_max_x, self.ledmatrix_max_y);
 
         self.visual_processor.color_vec = mode_init_screen.clone(); // replace with an initial screen after switch
         FreeRtos::delay_ms(200) // bask in the glory of the switch screen
