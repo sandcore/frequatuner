@@ -1,5 +1,5 @@
 use std::f32::consts::PI;
-use super::graphics::RGB;
+use super::graphics::*;
 
 /*
 Based on a set of frequency bins with f32 values, an animation is made showing the magnitude of the frequency ranges on the led matrix.
@@ -189,19 +189,14 @@ impl FadedBarsDrawn {
     fn draw_new_bars(mut self, painter: &mut Painter, eq_bins: &Vec<f32>) -> NewBarsDrawn {
         // equalizer magnitudes displayed as rows on a portrait ledmatrix. Every bin corresponds 1:1 to a led matrix Y.
         for row in 0.. eq_bins.len() {
-            let mut serpentine = false;
-
             //magnitude of frequency bin expressed in number of leds
             let amount_leds_mag = (painter.led_matrix_max_x as f32 * eq_bins[row]).ceil().clamp(0.0, painter.led_matrix_max_x as f32) as u32;
-
-            if row % 2 == 0 { // on a serpentine row, the ledmatrix renders from last led to the first 
-                serpentine = true;
-            }
 
             let newbar_color = self.get_newbar_color(painter, &eq_bins[row]);
             let line_graphic = super::graphics::line(painter.led_matrix_max_x, newbar_color);
             let line_shift = painter.led_matrix_max_x as u32 - amount_leds_mag;
-            super::graphics::paint_element_rgb(&mut self.color_vec, &line_graphic, line_shift as i32, row as i32, painter.led_matrix_max_x, painter.led_matrix_max_y);
+            
+            paint_element_rgb(&mut self.color_vec, &line_graphic, line_shift as i32, row as i32, painter.led_matrix_max_x, painter.led_matrix_max_y);
         }
 
         NewBarsDrawn {

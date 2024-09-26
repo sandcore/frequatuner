@@ -1,5 +1,5 @@
 use pitch_detector::{core::NoteName, note::NoteDetectionResult};
-use super::graphics::{RGB, GraphicalNote};
+use super::graphics::*;
 
 /*
 Based on a NoteDetectionResult from pitch_detector crate. One future refactor might be to keep an enum of interface elements so their types can be passed around easily and checked, 
@@ -131,7 +131,7 @@ impl BlankCanvas {
     fn draw_baseline(mut self) -> BaseLined {
         let baseline_row = (self.max_y as f32 / 2.0).round() as usize; // draw line starting at light 1 in row 17 (index 16), fixed around the center of the vertically placed ledstrip
         let line_graphic = super::graphics::line(self.max_x, RGB{r: self.base_line_color.r, g:self.base_line_color.g, b: self.base_line_color.b});
-        super::graphics::paint_element_rgb(&mut self.color_vec, &line_graphic, 0i32, baseline_row as i32, self.max_x, self.max_y);
+        paint_element_rgb(&mut self.color_vec, &line_graphic, 0i32, baseline_row as i32, self.max_x, self.max_y);
 
         BaseLined {
             detected_line_color: RGB{r:51,g:255,b:255},
@@ -154,7 +154,7 @@ impl BaseLined {
         let draw_row = (self.baseline_row as i16 + offset_distance) as usize;
 
         let line_graphic = super::graphics::line(self.max_x, RGB{r: self.detected_line_color.r, g:self.detected_line_color.g, b: self.detected_line_color.b});
-        super::graphics::paint_element_rgb(&mut self.color_vec, &line_graphic, 0i32, draw_row as i32, self.max_x, self.max_y);
+        paint_element_rgb(&mut self.color_vec, &line_graphic, 0i32, draw_row as i32, self.max_x, self.max_y);
 
         DetectedLineDrawn {
             max_x: self.max_x,
@@ -179,13 +179,13 @@ impl DetectedLineDrawn {
         let detected_note_color = if in_tune {self.in_tune_color} else {self.detected_note_color};
         let adjacent_note_color = RGB{r:self.adjacent_note_color.r, g:self.adjacent_note_color.g, b:self.adjacent_note_color.b};
         
-        let detected_graphic = super::graphics::convert_vecvecbool_to_xy_rgb_vec(graphical_detected_note.matrix, detected_note_color);
-        let prev_note_graphic = super::graphics::convert_vecvecbool_to_xy_rgb_vec(graphical_prev_note.matrix, RGB{r:adjacent_note_color.r, g:adjacent_note_color.g, b:adjacent_note_color.b});
-        let next_note_graphic = super::graphics::convert_vecvecbool_to_xy_rgb_vec(graphical_next_note.matrix, adjacent_note_color);
+        let detected_graphic = convert_vecvecbool_to_xy_rgb_vec(graphical_detected_note.matrix, detected_note_color);
+        let prev_note_graphic = convert_vecvecbool_to_xy_rgb_vec(graphical_prev_note.matrix, RGB{r:adjacent_note_color.r, g:adjacent_note_color.g, b:adjacent_note_color.b});
+        let next_note_graphic = convert_vecvecbool_to_xy_rgb_vec(graphical_next_note.matrix, adjacent_note_color);
         
-        super::graphics::paint_element_rgb(&mut self.color_vec, &detected_graphic, self.start_row_col_detected.1 as i32, self.start_row_col_detected.0 as i32, self.max_x, self.max_y);
-        super::graphics::paint_element_rgb(&mut self.color_vec, &prev_note_graphic, self.start_row_col_prev.1 as i32, self.start_row_col_prev.0 as i32, self.max_x, self.max_y);
-        super::graphics::paint_element_rgb(&mut self.color_vec, &next_note_graphic, self.start_row_col_next.1 as i32, self.start_row_col_next.0 as i32, self.max_x, self.max_y);
+        paint_element_rgb(&mut self.color_vec, &detected_graphic, self.start_row_col_detected.1 as i32, self.start_row_col_detected.0 as i32, self.max_x, self.max_y);
+        paint_element_rgb(&mut self.color_vec, &prev_note_graphic, self.start_row_col_prev.1 as i32, self.start_row_col_prev.0 as i32, self.max_x, self.max_y);
+        paint_element_rgb(&mut self.color_vec, &next_note_graphic, self.start_row_col_next.1 as i32, self.start_row_col_next.0 as i32, self.max_x, self.max_y);
 
         NotesDrawn {
             color_vec: self.color_vec

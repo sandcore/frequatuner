@@ -8,7 +8,7 @@ mod esp32s3_hw; // driver wrappers for confirmed working on-board and connected 
 use esp32s3_hw::Esp32S3c1;
 
 mod audiovisual; // process audio feed and output to led matrix
-use audiovisual::graphics::RGB;
+use audiovisual::graphics::*;
 
 pub enum EqTunerMode {
     Equalizer,
@@ -32,8 +32,6 @@ struct EqTuner<'a> {
     audio_processor: audiovisual::AudioProcessor,
     visual_processor: audiovisual::VisualProcessor,
 
-    sample_rate: u32,
-    num_frequency_bins: u8,
     frame_duration: Duration, // ledmatrix starts glitching if this is too short 
     last_visual_update: SystemTime,
     ledmatrix_max_x: usize,
@@ -69,8 +67,6 @@ impl <'a>EqTuner<'a> {
             mode_button_driver,
             audio_processor,
             visual_processor,
-            sample_rate,
-            num_frequency_bins,
             frame_duration: Duration::from_micros(100000), // 10 fps is more than enough. Won't be exact due to execution times but should be a fast enough constant refresh rate that doesnt glitch the matrix
             last_visual_update: SystemTime::now(),
             ledmatrix_max_x,
@@ -143,9 +139,9 @@ impl <'a>EqTuner<'a> {
         };
 
         let mut mode_init_animation = mode_init_screen.clone();
-        let one_up_graph = audiovisual::graphics::vecvec_one_up();
-        let eq_graph = audiovisual::graphics::convert_vecvecbool_to_xy_rgb_vec(audiovisual::graphics::vecvecbool_eq(), RGB{r:0, g:70, b:50});
-        let tun_graph = audiovisual::graphics::convert_vecvecbool_to_xy_rgb_vec(audiovisual::graphics::vecvecbool_tuner(), RGB{r:0, g:70, b:50});
+        let one_up_graph = vecvec_one_up();
+        let eq_graph = convert_vecvecbool_to_xy_rgb_vec(vecvecbool_eq(), RGB{r:0, g:70, b:50});
+        let tun_graph = convert_vecvecbool_to_xy_rgb_vec(vecvecbool_tuner(), RGB{r:0, g:70, b:50});
 
         let mut animation_bg = mode_init_animation.clone();
 
@@ -153,8 +149,8 @@ impl <'a>EqTuner<'a> {
             EqTunerMode::Equalizer => {
                 for _ in 0..24 {
                     self.switch_element_pos -= 1;
-                    audiovisual::graphics::paint_element(&mut animation_bg, &one_up_graph, self.switch_element_pos, 2, self.ledmatrix_max_x, self.ledmatrix_max_y);
-                    audiovisual::graphics::paint_element(&mut animation_bg, &eq_graph, 1, 23, self.ledmatrix_max_x, self.ledmatrix_max_y);
+                    paint_element(&mut animation_bg, &one_up_graph, self.switch_element_pos, 2, self.ledmatrix_max_x, self.ledmatrix_max_y);
+                    paint_element(&mut animation_bg, &eq_graph, 1, 23, self.ledmatrix_max_x, self.ledmatrix_max_y);
 
                     self.visual_processor.color_vec = animation_bg.clone(); // replace with an initial screen after switch
                     self.display_ledmatrix();
@@ -165,8 +161,8 @@ impl <'a>EqTuner<'a> {
             EqTunerMode::Tuner => {
                 for _ in 0..24 {
                     self.switch_element_pos += 1;
-                    audiovisual::graphics::paint_element(&mut mode_init_animation, &one_up_graph, self.switch_element_pos, 2, self.ledmatrix_max_x, self.ledmatrix_max_y);
-                    audiovisual::graphics::paint_element(&mut mode_init_animation, &tun_graph, 1, 23, self.ledmatrix_max_x, self.ledmatrix_max_y);
+                    paint_element(&mut mode_init_animation, &one_up_graph, self.switch_element_pos, 2, self.ledmatrix_max_x, self.ledmatrix_max_y);
+                    paint_element(&mut mode_init_animation, &tun_graph, 1, 23, self.ledmatrix_max_x, self.ledmatrix_max_y);
                     
                     self.visual_processor.color_vec = mode_init_animation.clone(); // replace with an initial screen after switch
                     self.display_ledmatrix();
@@ -177,10 +173,10 @@ impl <'a>EqTuner<'a> {
         }
         let line_graph = audiovisual::graphics::line(self.ledmatrix_max_x, RGB{r:255, g:216, b:0});
         let dot_graph = audiovisual::graphics::dot(RGB{r:40, g: 0, b: 0});
-        audiovisual::graphics::paint_element(&mut mode_init_screen, &line_graph, 0, 16, self.ledmatrix_max_x, self.ledmatrix_max_y);
-        audiovisual::graphics::paint_element(&mut mode_init_screen, &dot_graph, 2, 20, self.ledmatrix_max_x, self.ledmatrix_max_y);
-        audiovisual::graphics::paint_element(&mut mode_init_screen, &dot_graph, 4, 20, self.ledmatrix_max_x, self.ledmatrix_max_y);
-        audiovisual::graphics::paint_element(&mut mode_init_screen, &dot_graph, 6, 20, self.ledmatrix_max_x, self.ledmatrix_max_y);
+        paint_element(&mut mode_init_screen, &line_graph, 0, 16, self.ledmatrix_max_x, self.ledmatrix_max_y);
+        paint_element(&mut mode_init_screen, &dot_graph, 2, 20, self.ledmatrix_max_x, self.ledmatrix_max_y);
+        paint_element(&mut mode_init_screen, &dot_graph, 4, 20, self.ledmatrix_max_x, self.ledmatrix_max_y);
+        paint_element(&mut mode_init_screen, &dot_graph, 6, 20, self.ledmatrix_max_x, self.ledmatrix_max_y);
 
         self.visual_processor.color_vec = mode_init_screen.clone(); // replace with an initial screen after switch
         FreeRtos::delay_ms(200) // bask in the glory of the switch screen
