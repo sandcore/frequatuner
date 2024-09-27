@@ -11,7 +11,7 @@ use fundsp::hacker32::*;
 GiTuner runs the pitch detection process and supplies output.
 */
 pub struct GiTuner {
-    samples: RawBuffer,
+    samples_buffer: Vec<f32>,
     samples_max: usize,
 
     pitch_detector: McLeodDetector<f32>,
@@ -30,7 +30,7 @@ impl GiTuner {
         let samples_max_analysis = 2048; // number of samples in every analysis run.
 
         GiTuner {
-            samples: RawBuffer::new(buffer_length),
+            samples_buffer: vec![],
             samples_max: samples_max_analysis, // matches the input to pitch_detector below otherwise that errors out
             pitch_detector: McLeodDetector::new(samples_max_analysis, samples_max_analysis/2),
             recent_freqs: VecDeque::new(),
@@ -38,22 +38,23 @@ impl GiTuner {
         }
     }
 
-    pub fn tune(&mut self, sample: f32, sample_rate: u32) {
-        self.samples.buffer.push(sample);
+    pub fn tune(&mut self, mut samples: Vec<f32>, sample_rate: u32) {
+        self.samples_buffer.append(&mut samples);
 
-        if self.samples.buffer.len() >= self.samples_max {
-            let applied_filters = self.samples.apply_filters();
+        while self.samples_buffer.len() >= self.samples_max as usize { 
+            let samples_to_process: Vec<f32> = self.samples_buffer.splice(0..self.samples_buffer.len(), []).collect();
+
+            let raw_buffer = RawBuffer::new(samples_to_process);
+            let applied_filters = raw_buffer.apply_filters();
             let pitch_detected = applied_filters.pitch_detection(&mut self.pitch_detector, &mut self.recent_freqs, sample_rate);
             self.note_info = pitch_detected.note_info();
-            
-            self.samples.buffer.clear();
         }
     }
 }
 
 /*
 Consecutive processing steps, used typestate pattern here to keep some overview
- - raw buffer (not destroyed after state change, used for further sample collection)
+ - raw buffer
  - low/highpass filters applied to clean up the audio samples a bit
  - get pitch. Pitch is from pitch_detectION crate but we get the note from the pitch_detecTOR crate later. Pitch from pitch_detection crate because that gave better results for my situation. 
  - process mean (so tuner jumps around less) and get note info from pitch_detector
@@ -67,11 +68,10 @@ struct RawBuffer {
     highpass_filter: An<FixedSvf<f32, HighpassMode<f32>>>,
 }
 impl RawBuffer {
-    pub fn new(buffer_length: usize) -> RawBuffer {
+    pub fn new(samples: Vec<f32>) -> RawBuffer {
         // fundsp filters. 
         // lowpass and highpass are combined into a composite type
         // need to be persisted because fundsp filters work by mainining internal state
-        // another reason RawBuffer can't be dropped
 
         let low_freq = 30.0; //low cutoff frequency for highpass
         let high_freq = 18000.0; // high cutoff frequency for lowpass
@@ -81,12 +81,12 @@ impl RawBuffer {
         let highpass_filter = highpass_hz(low_freq, q);
 
         RawBuffer {
-            buffer: Vec::with_capacity(buffer_length),
+            buffer: samples,
             lowpass_filter,
             highpass_filter
         }
     }
-    fn apply_filters(&mut self) -> FiltersApplied {
+    fn apply_filters(mut self) -> FiltersApplied {
         let max_dsp_buffer = 64; // max size of the processing used by fundsp
         let max_dsp_buffer_idx = 63; // for use in index calculations
 

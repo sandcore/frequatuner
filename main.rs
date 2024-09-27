@@ -8,7 +8,8 @@ mod esp32s3_hw; // driver wrappers for confirmed working on-board and connected 
 use esp32s3_hw::Esp32S3c1;
 
 mod audiovisual; // process audio feed and output to led matrix
-use audiovisual::graphics::{self, *};
+use audiovisual::graphics;
+use audiovisual::{AudioProcessor, VisualProcessor};
 
 pub enum EqTunerModeEnum {
     Equalizer,
@@ -38,11 +39,11 @@ struct HwCommander<'a> {
     last_visual_update: SystemTime,
 }
 impl <'a>HwCommander<'a> {
-    fn new(sample_rate:u32) -> HwCommander<'a> {
+    fn new(sample_rate:&u32) -> HwCommander<'a> {
         let mut esp32 = Esp32S3c1::new();
         let audiobuffer = [0u8; 3072]; // buffer for the sound driver
 
-        let audio_driver = esp32s3_hw::get_linejack_i2s_driver(&mut esp32, sample_rate, 0, 5, 7, 6);        
+        let audio_driver = esp32s3_hw::get_linejack_i2s_driver(&mut esp32, *sample_rate, 0, 5, 7, 6);        
         let ledmatrix_driver = esp32s3_hw::get_ws2812ledstrip_driver(&mut esp32, 3, 18);
         
         // set up the mode switch button and set an interrupt on it
@@ -80,12 +81,12 @@ impl <'a>HwCommander<'a> {
         audio_values
     }
 
-    fn display_ledmatrix(&mut self) {
+    fn display_ledmatrix(&mut self, color_vec: Vec<u8>) {
         let now = SystemTime::now();
         let elapsed = now.duration_since(self.last_visual_update).unwrap_or(Duration::ZERO);
 
         if elapsed >= self.frame_duration {
-            self.ledmatrix_driver.write(&self.visual_processor.color_vec).ok();
+            self.ledmatrix_driver.write(&color_vec).ok();
             self.last_visual_update = now;
         }
     }
@@ -125,14 +126,16 @@ impl FrequalizerMode {
                 }
             }
         }
-        graphics::display_switch_animation(&self.mode);
     }
 }
 
 fn main() {
     esp_idf_hal::sys::link_patches();
-    let hw_commander = HwCommander::new(48000);
-    let fr_mode = FrequalizerMode::new();
+    let sample_rate = 48000;
+    let mut hw_commander = HwCommander::new(&sample_rate);
+    let mut fr_mode = FrequalizerMode::new();
+    let mut audio_processor = AudioProcessor::new(hw_commander.audiobuffer.len(), LEDS_MAX_X, &sample_rate);
+    let mut visual_processor = VisualProcessor::new();
 
     /*
     Main loop: read the audiobuffer and run the audio processor on it. 
@@ -140,14 +143,22 @@ fn main() {
     The visual processor reads audioprocessor output, processes, and outputs a color array (size is ledmatrix_x*ledmatrix_y*3 for g,r,b on every led) 
     */
     loop { 
-        FreeRtos::delay_ms(1); // give OS a chance to do some threading
+        FreeRtos::delay_ms(5); // give OS a chance to do some threading and prevent watchdog triggers
         
-        // Switch from equalizer to tuner and back on button presses. If the button was pressed the interrupt needs to be re-enabled
-        if fr_mode.check_switch_mode() {hw_commander.re_enable_interrupt();}
+        // Switch from equalizer to tuner and back on button presses. If the button was pressed an animation plays and the interrupt needs to be re-enabled
+        if fr_mode.check_switch_mode() {
+            graphics::display_switch_animation(&fr_mode.mode, &mut hw_commander);
+            hw_commander.re_enable_interrupt();
+        }
 
-        eq_tuner.process_audio_buffer();
-        eq_tuner.process_visuals();
+        let audio_values = hw_commander.read_audio_buffer();
+        audio_processor.process(audio_values, &fr_mode.mode);
 
-        eq_tuner.display_ledmatrix();
+        let input_for_visual_processor = audio_processor.output(&fr_mode.mode);
+        let display_vec_option = visual_processor.process(input_for_visual_processor);
+        
+        if let Some(display_vec) = display_vec_option {
+            hw_commander.display_ledmatrix(display_vec);
+        }
     }
 }

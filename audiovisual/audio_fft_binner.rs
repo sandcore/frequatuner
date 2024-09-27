@@ -13,22 +13,22 @@ AudioFrequalizer runs the analysis process and has the output for visual process
 */
 
 pub struct AudioFrequalizer {
-    num_bins: u8,
+    num_bins: usize,
     fft_planner: FftPlanner<f32>,
-    samples_buffer: RawBuffer,
+    samples_buffer: Vec<f32>,
     samples_max: u32,
     pub eq_bins: Vec<f32>
 }
 
 impl AudioFrequalizer {
-    pub fn new(num_bins: u8) -> Self {
+    pub fn new(num_bins: usize) -> Self {
         let samples_max = 2048; // 2048 was about the max I could fill the FFT transform with before crashing the ESP and it gives a good range of frequencies, slightly more than can be heard by most humans.
         let eq_bins = Vec::with_capacity(num_bins as usize);
 
         AudioFrequalizer {
             num_bins,
             fft_planner: FftPlanner::new(),
-            samples_buffer: RawBuffer::new(),
+            samples_buffer: vec![],
             samples_max,
             eq_bins
         }
@@ -36,33 +36,31 @@ impl AudioFrequalizer {
 
     // The caller chooses how many frequency bins are desired. A bigger led matrix will have room to display more bins than a smaller.
     // Number of samples and sample rate determine the min and max frequencies that are measured by the FFT
-    pub fn frequalize(&mut self, sample: f32, sample_rate: u32) {
-        self.samples_buffer.samples.push(sample);
+    pub fn frequalize(&mut self, mut samples: Vec<f32>, sample_rate: u32) {
+        self.samples_buffer.append(&mut samples);
 
-        if self.samples_buffer.samples.len() >= self.samples_max as usize { 
-            let num_samples = self.samples_buffer.samples.len();
+        while self.samples_buffer.len() >= self.samples_max as usize { 
+            let samples_to_process: Vec<f32> = self.samples_buffer.splice(0..self.samples_buffer.len(), []).collect();
+            let num_samples = samples_to_process.len();
 
             // set up the result bins
             let res_bins = ResultBins::new(num_samples, self.num_bins, sample_rate);
     
             // do the sequential FFT processing steps
-            let mut filters_applied = self.samples_buffer.apply_filters();
+            let raw_buffer = RawBuffer::new(samples_to_process);
+            let mut filters_applied = raw_buffer.apply_filters();
             let fft_over_samples = filters_applied.fft_transform(&mut self.fft_planner);
             let fft_result_bins = fft_over_samples.distribute_fft_to_fixed_bins(res_bins);
             let normalized_fft_result_bins = fft_result_bins.normalize_logarithmic_bins();
             self.eq_bins = normalized_fft_result_bins.fft_resultbins.bins;
-
-            //println!("{:?}", self.eq_bins);
-            self.samples_buffer.samples.clear();
         }
     }
 }
 
-// raw buffer of samples -> filter -> fft applied over samples -> fft distributed to result bins -> fft in result bins normalized
-// after first state change the raw buffer does NOT get dropped, it is used in the frequalizer as the samples buffer and filled again with new samples
+// raw buffer of samples -> filter -> fft applied over samples -> fft distributed to result bins -> fft in result bins normalized. Every state change destroys prev state.
 
 pub struct RawBuffer{
-    pub samples: Vec<f32>,
+    samples: Vec<f32>,
 
     lowpass_filter: An<FixedSvf<f32, LowpassMode<f32>>>,
     highpass_filter: An<FixedSvf<f32, HighpassMode<f32>>>,
@@ -83,11 +81,10 @@ struct NormalizedFFTResultBins{
 }
 
 impl RawBuffer {
-    pub fn new() -> RawBuffer {
+    pub fn new(samples: Vec<f32>) -> RawBuffer {
         // fundsp filters. 
         // lowpass and highpass are combined into a composite type
         // need to be persisted because fundsp filters work by mainining internal state
-        // another reason RawBuffer can't be dropped
 
         let low_freq = 40.0; //low cutoff frequency for highpass
         let high_freq = 17000.0; // high cutoff frequency for lowpass
@@ -97,13 +94,13 @@ impl RawBuffer {
         let highpass_filter = highpass_hz(low_freq, q);
 
         RawBuffer {
-            samples: vec![],
+            samples,
             lowpass_filter,
             highpass_filter
         }
     }
 
-    fn apply_filters(&mut self) -> FiltersApplied {
+    fn apply_filters(mut self) -> FiltersApplied {
         let max_dsp_buffer = 64; // max size of the processing used by fundsp
         let max_dsp_buffer_idx = 63; // for use in index calculations
 
@@ -205,7 +202,7 @@ struct ResultBins {
     sample_rate: u32
 }
 impl ResultBins {
-    fn new(num_samples: usize, num_bins: u8, sample_rate: u32) -> ResultBins {
+    fn new(num_samples: usize, num_bins: usize, sample_rate: u32) -> ResultBins {
         //set up the edges for the bins
         let min_freq = (sample_rate as f32 / num_samples as f32).max(70.0); // Use 35 hz or the lowest possibly measured freq value, whichever is higher
         let max_freq = (sample_rate as f32 / 2.0).min(1500.0); // Use 18000 Hz or Nyquist frequency (samp rate/2), whichever is lower

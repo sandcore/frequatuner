@@ -1,4 +1,6 @@
 
+use pitch_detector::note::NoteDetectionResult;
+
 use crate::EqTunerModeEnum;
 
 // mode Equalizer processing
@@ -19,51 +21,67 @@ pub struct AudioProcessor {
     tuner: audio_tuner::GiTuner
 }
 impl AudioProcessor {
-    pub fn new(buffer_length: usize, num_bins: u8, sample_rate: u32) -> Self {
+    pub fn new(buffer_length: usize, num_bins: usize, sample_rate: &u32) -> Self {
         AudioProcessor {
-            sample_rate,
+            sample_rate: *sample_rate,
             frequalizer: audio_fft_binner::AudioFrequalizer::new(num_bins),
             tuner: audio_tuner::GiTuner::new(buffer_length)
         }
     }
 
-    pub fn process(&mut self, audio_value: f32, mode: &EqTunerModeEnum) {
-        let gain = 2.0; // linejack gives a fairly low amplitude. Note: tuner gains the signal some more because guitar also gives a low amplitude output.
-        let audio_value_for_process = (audio_value*gain) as f32;
-
+    pub fn process(&mut self, audio_values: Vec<f32>, mode: &EqTunerModeEnum) {
         match mode {
             EqTunerModeEnum::Equalizer => {
-                self.frequalizer.frequalize(audio_value_for_process, self.sample_rate)
+                self.frequalizer.frequalize(audio_values, self.sample_rate)
             },
             EqTunerModeEnum::Tuner => {
-                self.tuner.tune(audio_value_for_process, self.sample_rate)
+                self.tuner.tune(audio_values, self.sample_rate)
+            }
+        }
+    }
+    
+    pub fn output(&mut self, mode: &EqTunerModeEnum) -> AudioProcessorOutputEnum {
+        match mode {
+            EqTunerModeEnum::Equalizer => {
+                AudioProcessorOutputEnum::EqBins(&self.frequalizer.eq_bins)
+            },
+            EqTunerModeEnum::Tuner => {
+                // note_info is optional because the pitch detector is strict
+                AudioProcessorOutputEnum::NoteInfo(&self.tuner.note_info)
             }
         }
     }
 }
+
+pub enum AudioProcessorOutputEnum<'a> {
+    EqBins(&'a Vec<f32>),
+    NoteInfo(&'a Option<NoteDetectionResult>)
+}
+
 pub struct VisualProcessor {
-    pub color_vec: Vec<u8>,
     eq_painter: visual_bins_to_animation::Painter,
     tuner_painter: visual_tuner_painter::Painter
 }
 impl VisualProcessor {
-    pub fn new(x:usize, y:usize) -> Self {
+    pub fn new() -> Self {
         VisualProcessor {
-            color_vec: vec![],
             eq_painter: visual_bins_to_animation::Painter::new(),
             tuner_painter: visual_tuner_painter::Painter{}
         }
     }
 
-    pub fn process(&mut self, audio_processor: &AudioProcessor, mode: &EqTunerModeEnum) {
-        match mode {
-            EqTunerModeEnum::Equalizer => {
-                self.color_vec = self.eq_painter.paint(&audio_processor.frequalizer.eq_bins);
-            },
-            EqTunerModeEnum::Tuner => {
+    pub fn process(&mut self, input: AudioProcessorOutputEnum) -> Option<Vec<u8>> {
+        match input {
+            AudioProcessorOutputEnum::EqBins(bins) => {
+                Some(self.eq_painter.paint(bins))
+            }
+            AudioProcessorOutputEnum::NoteInfo(note_info_option) => {
                 // note_info is optional because the pitch detector is strict
-                if let Some(note_info) = &audio_processor.tuner.note_info {
-                    self.color_vec = self.tuner_painter.paint(note_info);
+                if let Some(note_info) = note_info_option {
+                    Some(self.tuner_painter.paint(note_info))
+                }
+                else {
+                    None
                 }
             }
         }

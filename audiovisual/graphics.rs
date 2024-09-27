@@ -2,9 +2,11 @@ use pitch_detector::core::NoteName;
 use crate::EqTunerModeEnum;
 use crate::LEDS_MAX_X;
 use crate::LEDS_MAX_Y;
+use crate::HwCommander;
+use esp_idf_hal::delay::FreeRtos;
 
 /*
-Hodgepodge of graphical elements and their rendering. Defined some elements differently than others, depending on their origin. 
+Hodgepodge of graphical elements and their rendering. Defined some elements differently than others, depending on their origin (self drawn or lifted from image). 
 This module has conversion functions for the different definitions so the paint function can work with 1 input type.
 
 Could make this more fancy with a better interface but that wouldn't help current demands. If 2d rendering demands increase a point will
@@ -358,7 +360,7 @@ pub fn vecvecbool_tuner() -> Vec<Vec<bool>> {
     ]
 }
 
-pub fn display_switch_animation(mode: &EqTunerModeEnum) {
+pub fn display_switch_animation(mode: &EqTunerModeEnum, hw_commander: &mut HwCommander) {
     let mut mode_init_screen = Vec::with_capacity(LEDS_MAX_X*LEDS_MAX_Y);
     let mut fill_color_array =  match mode {
         EqTunerModeEnum::Equalizer => vec![1,30,1],
@@ -376,27 +378,29 @@ pub fn display_switch_animation(mode: &EqTunerModeEnum) {
 
     let mut animation_bg = mode_init_animation.clone();
 
-    match self.mode {
+    match mode {
         EqTunerModeEnum::Equalizer => {
-            for _ in 0..24 {
-                self.switch_element_pos -= 1;
-                paint_element(&mut animation_bg, &one_up_graph, self.switch_element_pos, 2);
+            let mut switch_element_pos = 16;
+            for _ in 0..32 {
+                switch_element_pos -= 1;
+                paint_element(&mut animation_bg, &one_up_graph, switch_element_pos, 2);
                 paint_element(&mut animation_bg, &eq_graph, 1, 23);
 
-                self.visual_processor.color_vec = animation_bg.clone(); // replace with an initial screen after switch
-                self.display_ledmatrix();
+                let color_vec = animation_bg.clone(); // replace with an initial screen after switch
+                hw_commander.display_ledmatrix(color_vec);
                 animation_bg = mode_init_animation.clone();
                 FreeRtos::delay_ms(100) // bask in the glory of the switch screen
             }
         },
         EqTunerModeEnum::Tuner => {
-            for _ in 0..24 {
-                self.switch_element_pos += 1;
-                paint_element(&mut mode_init_animation, &one_up_graph, self.switch_element_pos, 2);
+            let mut switch_element_pos = -16;
+            for _ in 0..32 {
+                switch_element_pos += 1;
+                paint_element(&mut mode_init_animation, &one_up_graph, switch_element_pos, 2);
                 paint_element(&mut mode_init_animation, &tun_graph, 1, 23);
                 
-                self.visual_processor.color_vec = mode_init_animation.clone(); // replace with an initial screen after switch
-                self.display_ledmatrix();
+                let color_vec = animation_bg.clone(); // replace with an initial screen after switch
+                hw_commander.display_ledmatrix(color_vec);
                 mode_init_animation = mode_init_screen.clone();
                 FreeRtos::delay_ms(100) // bask in the glory of the switch screen
             }
@@ -409,6 +413,7 @@ pub fn display_switch_animation(mode: &EqTunerModeEnum) {
     paint_element(&mut mode_init_screen, &dot_graph, 4, 20);
     paint_element(&mut mode_init_screen, &dot_graph, 6, 20);
 
-    self.visual_processor.color_vec = mode_init_screen.clone(); // replace with an initial screen after switch
+    let init_screen_color_vec = mode_init_screen.clone(); // replace with an initial screen after switch
+    hw_commander.display_ledmatrix(init_screen_color_vec);
     FreeRtos::delay_ms(200) // bask in the glory of the switch screen
 }
