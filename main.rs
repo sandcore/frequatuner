@@ -70,7 +70,7 @@ impl <'a>HwCommander<'a> {
 
 
 /*
-EqTuner keeps track of if we're in equalizer or tuner mode, 
+EqTuner keeps track of if we're in equalizer or tuner mode
 */
 struct EqTuner {
     mode: EqTunerMode,
@@ -140,22 +140,15 @@ impl EqTuner {
     }
 
     fn display_switch_screen(&mut self) {
-        let mut mode_init_screen = match self.mode {
-            EqTunerMode::Equalizer => {
-                let mut empty_canvas = Vec::with_capacity(LEDS_MAX_X*LEDS_MAX_Y);
-                for _ in 0..(LEDS_MAX_X*LEDS_MAX_Y) {
-                    empty_canvas.append(&mut vec![1,30,1]);
-                }
-                empty_canvas
-            },
-            EqTunerMode::Tuner => {
-                let mut empty_canvas = Vec::with_capacity(LEDS_MAX_X*LEDS_MAX_Y);
-                for _ in 0..(LEDS_MAX_X*LEDS_MAX_Y) {
-                    empty_canvas.append(&mut vec![1,1,5]);
-                }
-                empty_canvas
-            }
+        let mut mode_init_screen = Vec::with_capacity(LEDS_MAX_X*LEDS_MAX_Y);
+        let fill_color_array =  match self.mode {
+            EqTunerMode::Equalizer => vec![1,30,1],
+            EqTunerMode::Tuner => vec![1,1,5]
         };
+
+        for _ in 0..(LEDS_MAX_X*LEDS_MAX_Y) {
+            mode_init_screen.append(&mut vec![1,30,1]);
+        }
 
         let mut mode_init_animation = mode_init_screen.clone();
         let one_up_graph = vecvec_one_up();
