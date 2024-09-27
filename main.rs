@@ -134,7 +134,7 @@ fn main() {
     let sample_rate = 48000;
     let mut hw_commander = HwCommander::new(&sample_rate);
     let mut fr_mode = FrequalizerMode::new();
-    let mut audio_processor = AudioProcessor::new(hw_commander.audiobuffer.len(), LEDS_MAX_X, &sample_rate);
+    let mut audio_processor = AudioProcessor::new(hw_commander.audiobuffer.len(), LEDS_MAX_Y, &sample_rate);
     let mut visual_processor = VisualProcessor::new();
 
     /*
