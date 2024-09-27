@@ -16,7 +16,7 @@ pub struct AudioFrequalizer {
     num_bins: usize,
     fft_planner: FftPlanner<f32>,
     samples_buffer: Vec<f32>,
-    samples_max: u32,
+    samples_max: usize,
     pub eq_bins: Vec<f32>
 }
 
@@ -40,7 +40,7 @@ impl AudioFrequalizer {
         self.samples_buffer.append(&mut samples);
 
         while self.samples_buffer.len() >= self.samples_max as usize { 
-            let samples_to_process: Vec<f32> = self.samples_buffer.splice(0..self.samples_buffer.len(), []).collect();
+            let samples_to_process: Vec<f32> = self.samples_buffer.splice(0..self.samples_max, []).collect();
             let num_samples = samples_to_process.len();
 
             // set up the result bins

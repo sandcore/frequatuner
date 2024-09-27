@@ -361,17 +361,17 @@ pub fn vecvecbool_tuner() -> Vec<Vec<bool>> {
 }
 
 pub fn display_switch_animation(mode: &EqTunerModeEnum, hw_commander: &mut HwCommander) {
-    let mut mode_init_screen = Vec::with_capacity(LEDS_MAX_X*LEDS_MAX_Y);
-    let mut fill_color_array =  match mode {
+    let mut mode_init_screen = Vec::with_capacity(LEDS_MAX_X*LEDS_MAX_Y*3);
+    let fill_color_array =  match mode {
         EqTunerModeEnum::Equalizer => vec![1,30,1],
         EqTunerModeEnum::Tuner => vec![1,1,5]
     };
 
     for _ in 0..(LEDS_MAX_X*LEDS_MAX_Y) {
-        mode_init_screen.append(&mut fill_color_array);
+        mode_init_screen.append(&mut fill_color_array.clone());
     }
 
-    let mut mode_init_animation = mode_init_screen.clone();
+    let mode_init_animation = mode_init_screen.clone();
     let one_up_graph = vecvec_one_up();
     let eq_graph = convert_vecvecbool_to_xy_rgb_vec(vecvecbool_eq(), RGB{r:0, g:70, b:50});
     let tun_graph = convert_vecvecbool_to_xy_rgb_vec(vecvecbool_tuner(), RGB{r:0, g:70, b:50});
@@ -381,7 +381,7 @@ pub fn display_switch_animation(mode: &EqTunerModeEnum, hw_commander: &mut HwCom
     match mode {
         EqTunerModeEnum::Equalizer => {
             let mut switch_element_pos = 16;
-            for _ in 0..32 {
+            for _ in 0..28 {
                 switch_element_pos -= 1;
                 paint_element(&mut animation_bg, &one_up_graph, switch_element_pos, 2);
                 paint_element(&mut animation_bg, &eq_graph, 1, 23);
@@ -394,14 +394,14 @@ pub fn display_switch_animation(mode: &EqTunerModeEnum, hw_commander: &mut HwCom
         },
         EqTunerModeEnum::Tuner => {
             let mut switch_element_pos = -16;
-            for _ in 0..32 {
+            for _ in 0..28 {
                 switch_element_pos += 1;
-                paint_element(&mut mode_init_animation, &one_up_graph, switch_element_pos, 2);
-                paint_element(&mut mode_init_animation, &tun_graph, 1, 23);
+                paint_element(&mut animation_bg, &one_up_graph, switch_element_pos, 2);
+                paint_element(&mut animation_bg, &tun_graph, 1, 23);
                 
                 let color_vec = animation_bg.clone(); // replace with an initial screen after switch
                 hw_commander.display_ledmatrix(color_vec);
-                mode_init_animation = mode_init_screen.clone();
+                animation_bg = mode_init_screen.clone();
                 FreeRtos::delay_ms(100) // bask in the glory of the switch screen
             }
         }

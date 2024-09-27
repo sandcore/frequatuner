@@ -42,7 +42,7 @@ impl GiTuner {
         self.samples_buffer.append(&mut samples);
 
         while self.samples_buffer.len() >= self.samples_max as usize { 
-            let samples_to_process: Vec<f32> = self.samples_buffer.splice(0..self.samples_buffer.len(), []).collect();
+            let samples_to_process: Vec<f32> = self.samples_buffer.splice(0..self.samples_max, []).collect();
 
             let raw_buffer = RawBuffer::new(samples_to_process);
             let applied_filters = raw_buffer.apply_filters();
