@@ -59,7 +59,7 @@ impl <'a>HwCommander<'a> {
             audio_driver,
             ledmatrix_driver,
             mode_button_driver,
-            frame_duration: Duration::from_micros(100000), // 10 fps is more than enough. Won't be exact due to execution times but should be a fast enough constant refresh rate that doesnt glitch the matrix
+            frame_duration: Duration::from_micros(50000), // 20 fps is more than enough. Won't be exact due to execution times but should be a fast enough constant refresh rate that doesnt glitch the matrix
             last_visual_update: SystemTime::now(),
         }
     }
@@ -134,12 +134,11 @@ fn main() {
     let sample_rate = 48000;
     let mut hw_commander = HwCommander::new(&sample_rate);
     let mut fr_mode = FrequalizerMode::new();
-    let mut audio_processor = AudioProcessor::new(hw_commander.audiobuffer.len(), LEDS_MAX_Y, &sample_rate);
+    let mut audio_processor = AudioProcessor::new(&sample_rate);
     let mut visual_processor = VisualProcessor::new();
 
     /*
     Main loop: read the audiobuffer and run the audio processor on it. 
-
     The visual processor reads audioprocessor output, processes, and outputs a color array (size is ledmatrix_x*ledmatrix_y*3 for g,r,b on every led) 
     */
     loop { 
@@ -155,7 +154,7 @@ fn main() {
         audio_processor.process(audio_values, &fr_mode.mode);
 
         let input_for_visual_processor = audio_processor.output(&fr_mode.mode);
-        let display_vec_option = visual_processor.process(input_for_visual_processor);
+        let display_vec_option = visual_processor.process_and_output(input_for_visual_processor);
         
         if let Some(display_vec) = display_vec_option {
             hw_commander.display_ledmatrix(display_vec);
