@@ -1,5 +1,5 @@
 
-use crate::EqTunerMode;
+use crate::EqTunerModeEnum;
 
 // mode Equalizer processing
 mod audio_fft_binner;
@@ -27,18 +27,15 @@ impl AudioProcessor {
         }
     }
 
-    pub fn process(&mut self, unprocessed_audio_value: i32, mode: &EqTunerMode) {
-        // getting 4 byte i32 values
-        let audio_value = unprocessed_audio_value as f64 / (i32::MAX) as f64; // normalized, between 0 and 1
+    pub fn process(&mut self, audio_value: f32, mode: &EqTunerModeEnum) {
         let gain = 2.0; // linejack gives a fairly low amplitude. Note: tuner gains the signal some more because guitar also gives a low amplitude output.
-
         let audio_value_for_process = (audio_value*gain) as f32;
 
         match mode {
-            EqTunerMode::Equalizer => {
+            EqTunerModeEnum::Equalizer => {
                 self.frequalizer.frequalize(audio_value_for_process, self.sample_rate)
             },
-            EqTunerMode::Tuner => {
+            EqTunerModeEnum::Tuner => {
                 self.tuner.tune(audio_value_for_process, self.sample_rate)
             }
         }
@@ -58,12 +55,12 @@ impl VisualProcessor {
         }
     }
 
-    pub fn process(&mut self, audio_processor: &AudioProcessor, mode: &EqTunerMode) {
+    pub fn process(&mut self, audio_processor: &AudioProcessor, mode: &EqTunerModeEnum) {
         match mode {
-            EqTunerMode::Equalizer => {
+            EqTunerModeEnum::Equalizer => {
                 self.color_vec = self.eq_painter.paint(&audio_processor.frequalizer.eq_bins);
             },
-            EqTunerMode::Tuner => {
+            EqTunerModeEnum::Tuner => {
                 // note_info is optional because the pitch detector is strict
                 if let Some(note_info) = &audio_processor.tuner.note_info {
                     self.color_vec = self.tuner_painter.paint(note_info);

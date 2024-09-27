@@ -8,9 +8,9 @@ mod esp32s3_hw; // driver wrappers for confirmed working on-board and connected 
 use esp32s3_hw::Esp32S3c1;
 
 mod audiovisual; // process audio feed and output to led matrix
-use audiovisual::graphics::*;
+use audiovisual::graphics::{self, *};
 
-pub enum EqTunerMode {
+pub enum EqTunerModeEnum {
     Equalizer,
     Tuner
 }
@@ -38,9 +38,9 @@ struct HwCommander<'a> {
     last_visual_update: SystemTime,
 }
 impl <'a>HwCommander<'a> {
-    pub fn new(sample_rate:u32) -> HwCommander<'a> {
+    fn new(sample_rate:u32) -> HwCommander<'a> {
         let mut esp32 = Esp32S3c1::new();
-        let audiobuffer = [0; 3072]; // buffer for the sound driver
+        let audiobuffer = [0u8; 3072]; // buffer for the sound driver
 
         let audio_driver = esp32s3_hw::get_linejack_i2s_driver(&mut esp32, sample_rate, 0, 5, 7, 6);        
         let ledmatrix_driver = esp32s3_hw::get_ws2812ledstrip_driver(&mut esp32, 3, 18);
@@ -63,70 +63,21 @@ impl <'a>HwCommander<'a> {
         }
     }
 
-    pub fn re_enable_interrupt(&mut self) {
+    fn re_enable_interrupt(&mut self) {
         self.mode_button_driver.enable_interrupt().ok();
     }
-}
 
-
-/*
-EqTuner keeps track of if we're in equalizer or tuner mode
-*/
-struct EqTuner {
-    mode: EqTunerMode,
-
-    audio_processor: audiovisual::AudioProcessor,
-    visual_processor: audiovisual::VisualProcessor,
-
-    switch_element_pos: i32 // for the switch screen animation
-}
-
-impl EqTuner {
-    fn new(num_frequency_bins: u8) -> Self {
-        let audio_processor = audiovisual::AudioProcessor::new(audiobuffer.len(), num_frequency_bins, sample_rate);
-        let visual_processor = audiovisual::VisualProcessor::new(LEDS_MAX_X, LEDS_MAX_Y);
-
-        EqTuner {
-            mode: EqTunerMode::Equalizer,
-            audio_processor,
-            visual_processor,
-            switch_element_pos: -16 // start outside
-        }
-    }
-
-    fn process_audio_buffer(&mut self) {
+    fn read_audio_buffer(&mut self) -> Vec<f32> {
         let bytes_read = self.audio_driver.read(&mut self.audiobuffer, 1000).unwrap();
+        let mut audio_values = Vec::with_capacity(self.audiobuffer.len() / 4);
+
         for chunks in self.audiobuffer.chunks(4).take(bytes_read / 4) { 
             // on Esp32S3 for my two devices the MEMS microphone outputted the middle two bytes and garbage in the 1st and 4th. The linejack hardware outputs all 4 useful bytes. Currently working with linejack
             let unprocessed_audio_value = i32::from_le_bytes( [chunks[0], chunks[1], chunks[2], chunks[3]]);
-            self.audio_processor.process(unprocessed_audio_value, &self.mode);
+            let audio_value = unprocessed_audio_value as f64 / (i32::MAX) as f64; // normalized, between 0 and 1
+            audio_values.push(audio_value as f32);
         }
-    }
-
-    fn process_visuals(&mut self) {
-        self.visual_processor.process(&self.audio_processor, &self.mode);
-    }
-
-    fn check_mode_switch(&mut self) {
-        if BOOTTON_PRESSED.load(Ordering::Relaxed) {
-            BOOTTON_PRESSED.store(false, Ordering::Relaxed);
-            self.switch_mode(None);
-            self.mode_button_driver.enable_interrupt().ok();
-        }
-    }
-
-    fn switch_mode(&mut self, desired_mode: Option<EqTunerMode>) {
-        match desired_mode {
-            Some(EqTunerMode::Equalizer) => self.mode = EqTunerMode::Equalizer,
-            Some(EqTunerMode::Tuner) => self.mode = EqTunerMode::Tuner,
-            None => {
-                match self.mode {
-                    EqTunerMode::Equalizer => self.mode = EqTunerMode::Tuner,
-                    EqTunerMode::Tuner => self.mode = EqTunerMode::Equalizer
-                }
-            }
-        }
-        self.display_switch_screen();
+        audio_values
     }
 
     fn display_ledmatrix(&mut self) {
@@ -138,78 +89,61 @@ impl EqTuner {
             self.last_visual_update = now;
         }
     }
+}
 
-    fn display_switch_screen(&mut self) {
-        let mut mode_init_screen = Vec::with_capacity(LEDS_MAX_X*LEDS_MAX_Y);
-        let fill_color_array =  match self.mode {
-            EqTunerMode::Equalizer => vec![1,30,1],
-            EqTunerMode::Tuner => vec![1,1,5]
-        };
-
-        for _ in 0..(LEDS_MAX_X*LEDS_MAX_Y) {
-            mode_init_screen.append(&mut vec![1,30,1]);
+/*
+Keeps track of if we're in equalizer or tuner mode, switches mode
+*/
+struct FrequalizerMode {
+    mode: EqTunerModeEnum
+}
+impl FrequalizerMode {
+    fn new() -> FrequalizerMode {
+        FrequalizerMode {
+            mode: EqTunerModeEnum::Equalizer
         }
+    }
+    fn check_switch_mode(&mut self) -> bool {
+        if BOOTTON_PRESSED.load(Ordering::Relaxed) {
+            BOOTTON_PRESSED.store(false, Ordering::Relaxed);
+            self.switch_mode(None);
+            true
+        }
+        else {
+            false
+        }
+    }
 
-        let mut mode_init_animation = mode_init_screen.clone();
-        let one_up_graph = vecvec_one_up();
-        let eq_graph = convert_vecvecbool_to_xy_rgb_vec(vecvecbool_eq(), RGB{r:0, g:70, b:50});
-        let tun_graph = convert_vecvecbool_to_xy_rgb_vec(vecvecbool_tuner(), RGB{r:0, g:70, b:50});
-
-        let mut animation_bg = mode_init_animation.clone();
-
-        match self.mode {
-            EqTunerMode::Equalizer => {
-                for _ in 0..24 {
-                    self.switch_element_pos -= 1;
-                    paint_element(&mut animation_bg, &one_up_graph, self.switch_element_pos, 2);
-                    paint_element(&mut animation_bg, &eq_graph, 1, 23);
-
-                    self.visual_processor.color_vec = animation_bg.clone(); // replace with an initial screen after switch
-                    self.display_ledmatrix();
-                    animation_bg = mode_init_animation.clone();
-                    FreeRtos::delay_ms(100) // bask in the glory of the switch screen
-                }
-            },
-            EqTunerMode::Tuner => {
-                for _ in 0..24 {
-                    self.switch_element_pos += 1;
-                    paint_element(&mut mode_init_animation, &one_up_graph, self.switch_element_pos, 2);
-                    paint_element(&mut mode_init_animation, &tun_graph, 1, 23);
-                    
-                    self.visual_processor.color_vec = mode_init_animation.clone(); // replace with an initial screen after switch
-                    self.display_ledmatrix();
-                    mode_init_animation = mode_init_screen.clone();
-                    FreeRtos::delay_ms(100) // bask in the glory of the switch screen
+    fn switch_mode(&mut self, desired_mode: Option<EqTunerModeEnum>) {
+        match desired_mode {
+            Some(EqTunerModeEnum::Equalizer) => self.mode = EqTunerModeEnum::Equalizer,
+            Some(EqTunerModeEnum::Tuner) => self.mode = EqTunerModeEnum::Tuner,
+            None => {
+                match self.mode {
+                    EqTunerModeEnum::Equalizer => self.mode = EqTunerModeEnum::Tuner,
+                    EqTunerModeEnum::Tuner => self.mode = EqTunerModeEnum::Equalizer
                 }
             }
         }
-        let line_graph = line(LEDS_MAX_X, RGB{r:255, g:216, b:0});
-        let dot_graph = dot(RGB{r:40, g: 0, b: 0});
-        paint_element(&mut mode_init_screen, &line_graph, 0, 16);
-        paint_element(&mut mode_init_screen, &dot_graph, 2, 20);
-        paint_element(&mut mode_init_screen, &dot_graph, 4, 20);
-        paint_element(&mut mode_init_screen, &dot_graph, 6, 20);
-
-        self.visual_processor.color_vec = mode_init_screen.clone(); // replace with an initial screen after switch
-        FreeRtos::delay_ms(200) // bask in the glory of the switch screen
+        graphics::display_switch_animation(&self.mode);
     }
 }
 
 fn main() {
     esp_idf_hal::sys::link_patches();
     let hw_commander = HwCommander::new(48000);
-    let mut eq_tuner = EqTuner::new(32);
+    let fr_mode = FrequalizerMode::new();
 
     /*
-    Main loop: read the audiobuffer from the i2s driver and run the audio processor on it. 
+    Main loop: read the audiobuffer and run the audio processor on it. 
 
-    The visual processor reads audioprocessor output, processes, and outputs the color array (size is ledmatrix_x*ledmatrix_y*3 for g,r,b on every led) 
+    The visual processor reads audioprocessor output, processes, and outputs a color array (size is ledmatrix_x*ledmatrix_y*3 for g,r,b on every led) 
     */
     loop { 
         FreeRtos::delay_ms(1); // give OS a chance to do some threading
         
-        // Switch from equalizer to tuner and back on button presses
-        eq_tuner.check_mode_switch();
+        // Switch from equalizer to tuner and back on button presses. If the button was pressed the interrupt needs to be re-enabled
+        if fr_mode.check_switch_mode() {hw_commander.re_enable_interrupt();}
 
         eq_tuner.process_audio_buffer();
         eq_tuner.process_visuals();

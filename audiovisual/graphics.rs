@@ -1,9 +1,10 @@
 use pitch_detector::core::NoteName;
+use crate::EqTunerModeEnum;
 use crate::LEDS_MAX_X;
 use crate::LEDS_MAX_Y;
 
 /*
-Graphical elements and their rendering. Defined some elements differently than others, depending on their origin. 
+Hodgepodge of graphical elements and their rendering. Defined some elements differently than others, depending on their origin. 
 This module has conversion functions for the different definitions so the paint function can work with 1 input type.
 
 Could make this more fancy with a better interface but that wouldn't help current demands. If 2d rendering demands increase a point will
@@ -233,18 +234,11 @@ pub fn dot(color: RGB) -> Vec<Vec<Option<RGB>>> {
 
 /*
 Graphical representations of the musical notes that can be found by NoteDetectionResult
-
-Used pixelmatrices so I could visually "draw" the letters with the true values in the definitions below. Flattened later for processing in output.
+also use the NoteName enum from note_detection crate to have consistency for note names
 */
 
-type PixelMatrix = Vec<Vec<bool>>;
-
-// graphical representation of musical notes, max 2x4 pixels
-// drawing NoteDetectionResults from note_detection crate
-// also use the NoteName enum from note_detection crate to have consistency for note names
-
 pub struct GraphicalNote {
-    pub matrix: PixelMatrix,
+    pub matrix: Vec<Vec<bool>>,
 }
 
 impl GraphicalNote {
@@ -362,4 +356,59 @@ pub fn vecvecbool_tuner() -> Vec<Vec<bool>> {
         vec![false, false, false, true, false, true],
         vec![false, false, false, true, true, true],
     ]
+}
+
+pub fn display_switch_animation(mode: &EqTunerModeEnum) {
+    let mut mode_init_screen = Vec::with_capacity(LEDS_MAX_X*LEDS_MAX_Y);
+    let mut fill_color_array =  match mode {
+        EqTunerModeEnum::Equalizer => vec![1,30,1],
+        EqTunerModeEnum::Tuner => vec![1,1,5]
+    };
+
+    for _ in 0..(LEDS_MAX_X*LEDS_MAX_Y) {
+        mode_init_screen.append(&mut fill_color_array);
+    }
+
+    let mut mode_init_animation = mode_init_screen.clone();
+    let one_up_graph = vecvec_one_up();
+    let eq_graph = convert_vecvecbool_to_xy_rgb_vec(vecvecbool_eq(), RGB{r:0, g:70, b:50});
+    let tun_graph = convert_vecvecbool_to_xy_rgb_vec(vecvecbool_tuner(), RGB{r:0, g:70, b:50});
+
+    let mut animation_bg = mode_init_animation.clone();
+
+    match self.mode {
+        EqTunerModeEnum::Equalizer => {
+            for _ in 0..24 {
+                self.switch_element_pos -= 1;
+                paint_element(&mut animation_bg, &one_up_graph, self.switch_element_pos, 2);
+                paint_element(&mut animation_bg, &eq_graph, 1, 23);
+
+                self.visual_processor.color_vec = animation_bg.clone(); // replace with an initial screen after switch
+                self.display_ledmatrix();
+                animation_bg = mode_init_animation.clone();
+                FreeRtos::delay_ms(100) // bask in the glory of the switch screen
+            }
+        },
+        EqTunerModeEnum::Tuner => {
+            for _ in 0..24 {
+                self.switch_element_pos += 1;
+                paint_element(&mut mode_init_animation, &one_up_graph, self.switch_element_pos, 2);
+                paint_element(&mut mode_init_animation, &tun_graph, 1, 23);
+                
+                self.visual_processor.color_vec = mode_init_animation.clone(); // replace with an initial screen after switch
+                self.display_ledmatrix();
+                mode_init_animation = mode_init_screen.clone();
+                FreeRtos::delay_ms(100) // bask in the glory of the switch screen
+            }
+        }
+    }
+    let line_graph = line(LEDS_MAX_X, RGB{r:255, g:216, b:0});
+    let dot_graph = dot(RGB{r:40, g: 0, b: 0});
+    paint_element(&mut mode_init_screen, &line_graph, 0, 16);
+    paint_element(&mut mode_init_screen, &dot_graph, 2, 20);
+    paint_element(&mut mode_init_screen, &dot_graph, 4, 20);
+    paint_element(&mut mode_init_screen, &dot_graph, 6, 20);
+
+    self.visual_processor.color_vec = mode_init_screen.clone(); // replace with an initial screen after switch
+    FreeRtos::delay_ms(200) // bask in the glory of the switch screen
 }
