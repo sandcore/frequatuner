@@ -37,10 +37,12 @@ impl GiTuner {
         }
     }
 
-    pub fn tune(&mut self, mut samples: Vec<f32>, sample_rate: u32) {
-        self.samples_buffer.append(&mut samples);
+    pub fn tune(&mut self, samples: Vec<f32>, sample_rate: u32) {
+        let gain = 2.5; // raw guitar signal is pretty weak for tuning, amplify it some more
+        let mut samples_to_add = samples.into_iter().map(|x| x*gain ).collect();
+        self.samples_buffer.append(&mut samples_to_add);
 
-        while self.samples_buffer.len() >= self.samples_max as usize { 
+        while self.samples_buffer.len() >= self.samples_max as usize {
             let samples_to_process: Vec<f32> = self.samples_buffer.splice(0..self.samples_max, []).collect();
 
             let raw_buffer = RawBuffer::new(samples_to_process);
