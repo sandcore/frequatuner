@@ -15,10 +15,12 @@ pub enum EqTunerMode {
     Tuner
 }
 
-// Tracks the interrupt on the boot button
+// Used by the interrupt on the boot button
 static BOOTTON_PRESSED: AtomicBool = AtomicBool::new(false);
 
-// Passed around a lot and don't change as far as the runtime is concerned
+/* Passed around a lot and don't change as far as the runtime is concerned.
+Current logic for equalizer mode is only made for a situation where the number of frequency bins in eq mode is equal to the number of rows in the ledmatrix (I'm 
+using vertically placed so 32 freq bins). To change that some minor changes in the frequency visualizer are necessary.*/
 pub const LEDS_MAX_X: usize = 8;
 pub const LEDS_MAX_Y: usize = 32;
 
@@ -26,36 +28,19 @@ fn boot_button_callback() {
     BOOTTON_PRESSED.store(true, Ordering::Relaxed);
 }
 
-/*
-EqTuner keeps track of if we're in equalizer or tuner mode, contains the drivers that are used and is a centralized spot for 
-initializing some informational variables relating to the specific project / hardware used.
-
-Current logic is only made for a situation where the number of frequency bins in eq mode is equal to the number of rows in the ledmatrix (I'm 
-using vertically placed 8x32 matrix, so 32 freq bins). To change that some minor changes in the frequency visualizer are necessary.
-*/
-struct EqTuner<'a> {
-    mode: EqTunerMode,
+// Manages setup of, and direct interactions with, hardware drivers
+struct HwCommander<'a> {
     audiobuffer: [u8; 3072],
     audio_driver: I2sDriver<'a, I2sRx>,
     ledmatrix_driver: Ws2812Esp32RmtDriver,
     mode_button_driver: PinDriver<'a, AnyIOPin, Input>,
-    
-    audio_processor: audiovisual::AudioProcessor,
-    visual_processor: audiovisual::VisualProcessor,
-
     frame_duration: Duration, // ledmatrix starts glitching if this is too short 
     last_visual_update: SystemTime,
-
-    switch_element_pos: i32 // for the switch screen animation
 }
-
-impl <'a>EqTuner<'a> {
-    fn new(sample_rate:u32, num_frequency_bins: u8) -> Self {
+impl <'a>HwCommander<'a> {
+    pub fn new(sample_rate:u32) -> HwCommander<'a> {
         let mut esp32 = Esp32S3c1::new();
         let audiobuffer = [0; 3072]; // buffer for the sound driver
-
-        let audio_processor = audiovisual::AudioProcessor::new(audiobuffer.len(), num_frequency_bins, sample_rate);
-        let visual_processor = audiovisual::VisualProcessor::new(LEDS_MAX_X, LEDS_MAX_Y);
 
         let audio_driver = esp32s3_hw::get_linejack_i2s_driver(&mut esp32, sample_rate, 0, 5, 7, 6);        
         let ledmatrix_driver = esp32s3_hw::get_ws2812ledstrip_driver(&mut esp32, 3, 18);
@@ -68,16 +53,43 @@ impl <'a>EqTuner<'a> {
         }
         mode_button_driver.enable_interrupt().ok();
 
-        EqTuner {
-            mode: EqTunerMode::Equalizer,
+        HwCommander {
             audiobuffer,
             audio_driver,
             ledmatrix_driver,
             mode_button_driver,
-            audio_processor,
-            visual_processor,
             frame_duration: Duration::from_micros(100000), // 10 fps is more than enough. Won't be exact due to execution times but should be a fast enough constant refresh rate that doesnt glitch the matrix
             last_visual_update: SystemTime::now(),
+        }
+    }
+
+    pub fn re_enable_interrupt(&mut self) {
+        self.mode_button_driver.enable_interrupt().ok();
+    }
+}
+
+
+/*
+EqTuner keeps track of if we're in equalizer or tuner mode, 
+*/
+struct EqTuner {
+    mode: EqTunerMode,
+
+    audio_processor: audiovisual::AudioProcessor,
+    visual_processor: audiovisual::VisualProcessor,
+
+    switch_element_pos: i32 // for the switch screen animation
+}
+
+impl EqTuner {
+    fn new(num_frequency_bins: u8) -> Self {
+        let audio_processor = audiovisual::AudioProcessor::new(audiobuffer.len(), num_frequency_bins, sample_rate);
+        let visual_processor = audiovisual::VisualProcessor::new(LEDS_MAX_X, LEDS_MAX_Y);
+
+        EqTuner {
+            mode: EqTunerMode::Equalizer,
+            audio_processor,
+            visual_processor,
             switch_element_pos: -16 // start outside
         }
     }
@@ -192,7 +204,8 @@ impl <'a>EqTuner<'a> {
 
 fn main() {
     esp_idf_hal::sys::link_patches();
-    let mut eq_tuner = EqTuner::new(48000, 32);
+    let hw_commander = HwCommander::new(48000);
+    let mut eq_tuner = EqTuner::new(32);
 
     /*
     Main loop: read the audiobuffer from the i2s driver and run the audio processor on it. 
