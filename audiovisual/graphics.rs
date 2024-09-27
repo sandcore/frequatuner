@@ -380,8 +380,8 @@ pub fn display_switch_animation(mode: &EqTunerModeEnum, hw_commander: &mut HwCom
 
     match mode {
         EqTunerModeEnum::Equalizer => {
-            let mut switch_element_pos = 16;
-            for _ in 0..28 {
+            let mut switch_element_pos = 14;
+            for _ in 0..30 {
                 switch_element_pos -= 1;
                 paint_element(&mut animation_bg, &one_up_graph, switch_element_pos, 2);
                 paint_element(&mut animation_bg, &eq_graph, 1, 23);

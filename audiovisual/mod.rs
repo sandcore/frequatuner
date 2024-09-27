@@ -1,7 +1,8 @@
 
 use pitch_detector::note::NoteDetectionResult;
+use fundsp::hacker32::*;
 
-use crate::EqTunerModeEnum;
+use crate::{EqTunerModeEnum, LEDS_MAX_Y};
 
 // mode Equalizer processing
 mod audio_fft_binner;
@@ -15,27 +16,43 @@ mod visual_tuner_painter;
 pub mod graphics;
 
 // The audioprocessor fills either the buffer for equalizer or the buffer for tuner depending on mode
-pub struct AudioProcessor {
+pub struct AudioProcessor {  
     sample_rate: u32,
     frequalizer: audio_fft_binner::AudioFrequalizer,
-    tuner: audio_tuner::GiTuner
+    tuner: audio_tuner::GiTuner,
+
+    lowpass_filter: An<FixedSvf<f32, LowpassMode<f32>>>,
+    highpass_filter: An<FixedSvf<f32, HighpassMode<f32>>>,
 }
 impl AudioProcessor {
-    pub fn new(buffer_length: usize, num_bins: usize, sample_rate: &u32) -> Self {
+    pub fn new(sample_rate: &u32) -> Self {
+        // fundsp filters as a pre-processor. Removes a lot of audio glitching when there isn't a lot coming in.
+        // lowpass and highpass need to be persisted because fundsp filters work by mainining internal state
+
+        let low_freq = 30.0; //low cutoff frequency for highpass
+        let high_freq = 18000.0; // high cutoff frequency for lowpass
+        let q = 0.707; // "Q factor", 0.707 is supposed to be a good / safe value (:
+
+        let lowpass_filter= lowpass_hz(high_freq, q);
+        let highpass_filter = highpass_hz(low_freq, q);
+
         AudioProcessor {
+            lowpass_filter,
+            highpass_filter,
             sample_rate: *sample_rate,
-            frequalizer: audio_fft_binner::AudioFrequalizer::new(num_bins),
-            tuner: audio_tuner::GiTuner::new(buffer_length)
+            frequalizer: audio_fft_binner::AudioFrequalizer::new(LEDS_MAX_Y),
+            tuner: audio_tuner::GiTuner::new()
         }
     }
 
     pub fn process(&mut self, audio_values: Vec<f32>, mode: &EqTunerModeEnum) {
+        let lowhighpass_audio_vals = self.apply_lowhighpass(audio_values);
         match mode {
             EqTunerModeEnum::Equalizer => {
-                self.frequalizer.frequalize(audio_values, self.sample_rate)
+                self.frequalizer.frequalize(lowhighpass_audio_vals, self.sample_rate)
             },
             EqTunerModeEnum::Tuner => {
-                self.tuner.tune(audio_values, self.sample_rate)
+                self.tuner.tune(lowhighpass_audio_vals, self.sample_rate)
             }
         }
     }
@@ -50,6 +67,39 @@ impl AudioProcessor {
                 AudioProcessorOutputEnum::NoteInfo(&self.tuner.note_info)
             }
         }
+    }
+
+    fn apply_lowhighpass(&mut self, mut samples: Vec<f32>) -> Vec<f32> {
+        let max_dsp_buffer = 64; // max size of the processing used by fundsp
+        let max_dsp_buffer_idx = 63; // for use in index calculations
+
+        let gain = 3.0f32; // Boost signal because of low amplitude on ADC I2S module. 
+
+        let mut dsp_buff = BufferVec::new(1);
+        let mut dsp_lowpassed_values = BufferVec::new(1);
+        let mut dsp_highpassed_values = BufferVec::new(1);
+        
+        let mut output_vec = vec![0f32; samples.len()];
+        let mut dspbuffer_counter = 0;
+
+        for (i, sample) in samples.iter_mut().enumerate() {
+            let gained_sample = *sample * gain;
+            dsp_buff.buffer_mut().set_f32(0, dspbuffer_counter, gained_sample);
+
+            if dspbuffer_counter == max_dsp_buffer_idx {
+                self.lowpass_filter.process(max_dsp_buffer, &dsp_buff.buffer_ref(), &mut dsp_lowpassed_values.buffer_mut());
+                self.highpass_filter.process(max_dsp_buffer, &dsp_lowpassed_values.buffer_ref(), &mut dsp_highpassed_values.buffer_mut());
+
+                // copy filtered values in the samples from the current index
+                output_vec[(i-max_dsp_buffer_idx)..=i].copy_from_slice(dsp_highpassed_values.buffer_mut().channel_f32(0));
+
+                dspbuffer_counter = 0;
+            }
+            else {
+                dspbuffer_counter += 1;
+            }
+        }
+        output_vec
     }
 }
 
@@ -70,7 +120,7 @@ impl VisualProcessor {
         }
     }
 
-    pub fn process(&mut self, input: AudioProcessorOutputEnum) -> Option<Vec<u8>> {
+    pub fn process_and_output(&mut self, input: AudioProcessorOutputEnum) -> Option<Vec<u8>> {
         match input {
             AudioProcessorOutputEnum::EqBins(bins) => {
                 Some(self.eq_painter.paint(bins))

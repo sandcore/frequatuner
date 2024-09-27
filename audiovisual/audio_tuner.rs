@@ -2,7 +2,6 @@ use std::collections::VecDeque;
 
 use pitch_detection::detector::{mcleod::McLeodDetector, PitchDetector};
 use pitch_detector::note::NoteDetectionResult;
-use fundsp::hacker32::*;
 
 // Every X samples a pitch detection loop is started. The DSP filter (low and highpass) uses a 64 sample buffer. Probably a good idea to keep the amount of samples used in a
 // pitch detection loop a multiple of the DSP sample buffer when changes values around.
@@ -24,7 +23,7 @@ pub struct GiTuner {
 }
 
 impl GiTuner {
-    pub fn new(buffer_length: usize) -> Self {
+    pub fn new() -> Self {
         // There is better frequency detection resolution by using more (1024+) samples, otherwise low E string is not measured right
         // https://www.cycfi.com/2018/04/fast-and-efficient-pitch-detection-bliss/
         let samples_max_analysis = 2048; // number of samples in every analysis run.
@@ -45,93 +44,33 @@ impl GiTuner {
             let samples_to_process: Vec<f32> = self.samples_buffer.splice(0..self.samples_max, []).collect();
 
             let raw_buffer = RawBuffer::new(samples_to_process);
-            let applied_filters = raw_buffer.apply_filters();
-            let pitch_detected = applied_filters.pitch_detection(&mut self.pitch_detector, &mut self.recent_freqs, sample_rate);
+            let pitch_detected = raw_buffer.pitch_detection(&mut self.pitch_detector, &mut self.recent_freqs, sample_rate);
             self.note_info = pitch_detected.note_info();
         }
     }
 }
 
 /*
-Consecutive processing steps, used typestate pattern here to keep some overview
+Consecutive processing steps, used typestate pattern
  - raw buffer
- - low/highpass filters applied to clean up the audio samples a bit
  - get pitch. Pitch is from pitch_detectION crate but we get the note from the pitch_detecTOR crate later. Pitch from pitch_detection crate because that gave better results for my situation. 
  - process mean (so tuner jumps around less) and get note info from pitch_detector
 */
 
 struct RawBuffer {
     buffer: Vec<f32>,
-
-    // Filter and related settings
-    lowpass_filter: An<FixedSvf<f32, LowpassMode<f32>>>,
-    highpass_filter: An<FixedSvf<f32, HighpassMode<f32>>>,
 }
 impl RawBuffer {
     pub fn new(samples: Vec<f32>) -> RawBuffer {
-        // fundsp filters. 
-        // lowpass and highpass are combined into a composite type
-        // need to be persisted because fundsp filters work by mainining internal state
-
-        let low_freq = 30.0; //low cutoff frequency for highpass
-        let high_freq = 18000.0; // high cutoff frequency for lowpass
-        let q = 0.707; // "Q factor", 0.707 is supposed to be a good / safe value (:
-
-        let lowpass_filter= lowpass_hz(high_freq, q);
-        let highpass_filter = highpass_hz(low_freq, q);
-
         RawBuffer {
             buffer: samples,
-            lowpass_filter,
-            highpass_filter
         }
     }
-    fn apply_filters(mut self) -> FiltersApplied {
-        let max_dsp_buffer = 64; // max size of the processing used by fundsp
-        let max_dsp_buffer_idx = 63; // for use in index calculations
 
-        let gain = 2.0f32; // Boost signal because of low amplitude direct guitar input. Second gain on top of the gain in the main processor.
-
-        // Used BufferArrays before integrating all parts of EqTuner project together, and that worked before. But in the integrated project
-        // BufferArrays cause a panic without a source location, guess stack related.
-        let mut dsp_buff = BufferVec::new(1);
-        let mut dsp_lowpassed_values = BufferVec::new(1);
-        let mut dsp_highpassed_values = BufferVec::new(1);
-        
-        let mut output_vec = vec![0f32; self.buffer.len()];
-        let mut dspbuffer_counter = 0;
-
-        for (i, sample) in self.buffer.iter_mut().enumerate() {
-            let gained_sample = *sample * gain;
-            dsp_buff.buffer_mut().set_f32(0, dspbuffer_counter, gained_sample);
-
-            if dspbuffer_counter == max_dsp_buffer_idx {
-                self.lowpass_filter.process(max_dsp_buffer, &dsp_buff.buffer_ref(), &mut dsp_lowpassed_values.buffer_mut());
-                self.highpass_filter.process(max_dsp_buffer, &dsp_lowpassed_values.buffer_ref(), &mut dsp_highpassed_values.buffer_mut());
-
-                // copy filtered values in the samples from the current index
-                output_vec[(i-max_dsp_buffer_idx)..=i].copy_from_slice(dsp_highpassed_values.buffer_mut().channel_f32(0));
-
-                dspbuffer_counter = 0;
-            }
-            else {
-                dspbuffer_counter += 1;
-            }
-        }
-
-        FiltersApplied {
-            filtered_buffer: output_vec
-        }
-    }
-}
-struct FiltersApplied {
-    filtered_buffer: Vec<f32>
-}
-impl FiltersApplied {
     pub fn pitch_detection(self, detector: &mut McLeodDetector<f32>, recent_freqs: &mut VecDeque<f32>, sample_rate: u32) -> PitchDetermined {
         let mut mean_freq = None; // by default we have no new mean frequency
 
-        if let Some(pitch) = detector.get_pitch(&self.filtered_buffer, sample_rate as usize, 0.00005, 0.5) {
+        if let Some(pitch) = detector.get_pitch(&self.buffer, sample_rate as usize, 0.00005, 0.5) {
             let frequency = pitch.frequency;
             recent_freqs.push_back(frequency);
         }
@@ -146,6 +85,7 @@ impl FiltersApplied {
         }
     }
 }
+
 struct PitchDetermined {
     mean_freq: Option<f32>
 }
