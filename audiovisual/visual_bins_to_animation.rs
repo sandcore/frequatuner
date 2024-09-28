@@ -140,7 +140,7 @@ impl BackgroundDrawn {
     fn new(color_vec: Vec<RGB>) -> Self {
         BackgroundDrawn {
             color_vec,
-            fade_factor: 0.6
+            fade_factor: 0.2
         }
     }
     fn draw_fade_bars(mut self, painter: &mut Painter) -> FadedBarsDrawn {
@@ -189,10 +189,19 @@ impl FadedBarsDrawn {
             let amount_leds_mag = (LEDS_MAX_X as f32 * eq_bins[row]).ceil().clamp(1.0, LEDS_MAX_X as f32) as u32;
 
             let newbar_color = self.get_newbar_color(painter, &eq_bins[row]);
-            let line_graphic = super::graphics::line(LEDS_MAX_X, newbar_color);
+            let line_graphic = super::graphics::line(LEDS_MAX_X, RGB{r:newbar_color.r, g:newbar_color.g, b:newbar_color.b});
             let line_shift = LEDS_MAX_X as u32 - amount_leds_mag;
             
             paint_element_rgb(&mut self.color_vec, &line_graphic, line_shift as i32, row as i32);
+            
+            for i in 0..amount_leds_mag as usize {
+                if row % 2 == 0 { // serpentine
+                    painter.bar_ghosts[((LEDS_MAX_X) - i)+i*row] = Some(RGB{r:newbar_color.r, g:newbar_color.g, b:newbar_color.b});
+                }
+                else {
+                    painter.bar_ghosts[i*row+i] = Some(RGB{r:newbar_color.r, g:newbar_color.g, b:newbar_color.b});
+                }
+            }
         }
 
         NewBarsDrawn {
