@@ -9,9 +9,11 @@ use ws2812_esp32_rmt_driver::driver::Ws2812Esp32RmtDriver;
 mod i2s_rx_mems_mic;
 mod i2s_rx_adc_jack;
 mod esp32s3_wifi;
+pub mod config;
 
-// macro crate used to construct gpio hashmap more quickly and readably
+// macro crates used for gpio definition and retrieval
 use seq_macro::seq;
+use paste::paste;
 
 /*
 Module serves as an overview of available (and proven to work) drivers+configurations for my situation as well as instantiation of drivers.
@@ -32,10 +34,13 @@ pub enum I2sEnum {
     I2S1(I2S1)
 }
 
-pub struct GpioManager {
-    gpio_hashmap: HashMap<u8, AnyIOPin>,
-}
-
+seq!(N in 0..=21 {
+    pub struct GpioManager{
+    #(
+            gpio~N: Option<Gpio~N>,
+    )*
+    }
+});
 impl GpioManager {
     // consume the gpio from hashmap and return it. 
     pub fn get_gpio(&mut self, num: u8) -> AnyIOPin {
@@ -72,7 +77,15 @@ pub struct Esp32S3c1{
 impl Esp32S3c1 {
     pub fn new() -> Self {
         let periphs = Peripherals::take().unwrap();
-        let mut gpio_hashmap = HashMap::new();
+        let gpio_manager = seq!(N in 0..=21 {
+            GpioManager{
+            #(
+                    gpio~N: Some(periphs.pins.gpio~N),
+            )*
+            }
+        });
+        let mut i2s_hashmap = HashMap::new();
+        /*let mut gpio_hashmap = HashMap::new();
         let mut i2s_hashmap = HashMap::new();
 
         // 22 up to and including 25 are not available on ESP32S3-c1.
@@ -93,10 +106,11 @@ impl Esp32S3c1 {
                     gpio_hashmap.insert(N, periphs.pins.gpio~N.downgrade());
             )*
         });
+        */
         i2s_hashmap.insert(0, I2sEnum::I2S0(periphs.i2s0));
         i2s_hashmap.insert(1, I2sEnum::I2S1(periphs.i2s1));
 
-        let gpio_manager = GpioManager{gpio_hashmap};
+        //let gpio_manager = GpioManager{gpio_hashmap};
         let i2s_manager = I2sManager{i2s_hashmap};
 
         Esp32S3c1 {
@@ -146,13 +160,6 @@ pub fn get_mems_microphone_i2s_driver<'a>(
         i2s_rx_mems_mic::boot_get_driver(esp32, sample_rate, i2s_num, bclk_num, din_num, ws_num)
 }
 
-pub fn get_linejack_i2s_driver<'a>(
-    esp32: &mut Esp32S3c1,
-    sample_rate: u32,
-    i2s_num: u8, 
-    bclk_num: u8,
-    din_num: u8,
-    ws_num: u8
-    ) -> I2sDriver<'a, I2sRx> {
-        i2s_rx_adc_jack::boot_get_driver(esp32, sample_rate, i2s_num, bclk_num, din_num, ws_num)
+pub fn get_linejack_i2s_driver<'a, const B: usize, const D: usize, const W: usize, const I: usize> (esp32: &mut Esp32S3c1, sample_rate: u32) -> I2sDriver<'a, I2sRx> {
+        i2s_rx_adc_jack::boot_get_driver::<B, D, W, I>(esp32, sample_rate)
 }

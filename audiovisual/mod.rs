@@ -25,7 +25,7 @@ pub struct AudioProcessor {
     highpass_filter: An<FixedSvf<f32, HighpassMode<f32>>>,
 }
 impl AudioProcessor {
-    pub fn new(sample_rate: &u32) -> Self {
+    pub fn new(sample_rate: u32) -> Self {
         // fundsp filters as a pre-processor. Removes a lot of audio glitching when there isn't a lot coming in.
         // lowpass and highpass need to be persisted because fundsp filters work by mainining internal state
 
