@@ -39,7 +39,7 @@ impl AudioProcessor {
         AudioProcessor {
             lowpass_filter,
             highpass_filter,
-            sample_rate: *sample_rate,
+            sample_rate,
             frequalizer: audio_fft_binner::AudioFrequalizer::new(LEDS_MAX_Y),
             tuner: audio_tuner::GiTuner::new()
         }

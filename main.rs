@@ -20,7 +20,6 @@ pub enum EqTunerModeEnum {
 // Used by the interrupt on the boot button
 static BOOTTON_PRESSED: AtomicBool = AtomicBool::new(false);
 
-
 fn boot_button_callback() {
     BOOTTON_PRESSED.store(true, Ordering::Relaxed);
 }
@@ -39,8 +38,8 @@ impl <'a>HwCommander<'a> {
         let mut esp32 = Esp32S3c1::new();
         let audiobuffer = [0u8; 3072]; // buffer for the sound driver
 
-        let audio_driver = esp32s3_hw::get_linejack_i2s_driver::<AUDIO_IN_BCLK, AUDIO_IN_DIN, AUDIO_IN_WS, AUDIO_IN_I2S>(&mut esp32, AUDIO_SAMPLE_RATE);        
-        let ledmatrix_driver = esp32s3_hw::get_ws2812ledstrip_driver(&mut esp32, 3, 18);
+        let audio_driver = esp32s3_hw::get_linejack_i2s_driver(&mut esp32, AUDIO_SAMPLE_RATE, AUDIO_IN_I2S, AUDIO_IN_BCLK, AUDIO_IN_DIN, AUDIO_IN_WS);        
+        let ledmatrix_driver = esp32s3_hw::get_ws2812ledstrip_driver(&mut esp32, LEDS_CHANNEL, LEDS_IN);
         
         // set up the mode switch button and set an interrupt on it
         let mut mode_button_driver = esp32s3_hw::get_on_board_boot_button(&mut esp32, None);
@@ -127,7 +126,6 @@ impl FrequalizerMode {
 
 fn main() {
     esp_idf_hal::sys::link_patches();
-    let sample_rate = 48000;
     let mut hw_commander = HwCommander::new();
     let mut fr_mode = FrequalizerMode::new();
     let mut audio_processor = AudioProcessor::new(AUDIO_SAMPLE_RATE);

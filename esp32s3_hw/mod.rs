@@ -11,9 +11,8 @@ mod i2s_rx_adc_jack;
 mod esp32s3_wifi;
 pub mod config;
 
-// macro crates used for gpio definition and retrieval
+// macro crate used for gpio definition and retrieval
 use seq_macro::seq;
-use paste::paste;
 
 /*
 Module serves as an overview of available (and proven to work) drivers+configurations for my situation as well as instantiation of drivers.
@@ -34,83 +33,129 @@ pub enum I2sEnum {
     I2S1(I2S1)
 }
 
-seq!(N in 0..=21 {
-    pub struct GpioManager{
-    #(
-            gpio~N: Option<Gpio~N>,
-    )*
+seq!(N in 0..=21 { // want to render 0..=48 while skipping 22-25 but seq doesnt allow it
+    struct GpioManager {
+        #(
+        gpio~N: Option<Gpio~N>,
+        )*
+    gpio22: Option<AnyIOPin>,
+    gpio23: Option<AnyIOPin>,
+    gpio24: Option<AnyIOPin>,
+    gpio25: Option<AnyIOPin>,
+    gpio26: Option<Gpio26>,
+    gpio27: Option<Gpio27>,
+    gpio28: Option<Gpio28>,
+    gpio29: Option<Gpio29>,
+    gpio30: Option<Gpio30>,
+    gpio31: Option<Gpio31>,
+    gpio32: Option<Gpio32>,
+    gpio33: Option<Gpio33>,
+    gpio34: Option<Gpio34>,
+    gpio35: Option<Gpio35>,
+    gpio36: Option<Gpio36>,
+    gpio37: Option<Gpio37>,
+    gpio38: Option<Gpio38>,
+    gpio39: Option<Gpio39>,
+    gpio40: Option<Gpio40>,
+    gpio41: Option<Gpio41>,
+    gpio42: Option<Gpio42>,
+    gpio43: Option<Gpio43>,
+    gpio44: Option<Gpio44>,
+    gpio45: Option<Gpio45>,
+    gpio46: Option<Gpio46>,
+    gpio47: Option<Gpio47>,
+    gpio48: Option<Gpio48>,   
     }
 });
-impl GpioManager {
-    // consume the gpio from hashmap and return it. 
-    pub fn get_gpio(&mut self, num: u8) -> AnyIOPin {
-        self.gpio_hashmap.remove(&num).unwrap()
-    }
 
-    pub fn get_gpios(&mut self, nums: Vec<u8>) -> Vec<AnyIOPin> {
-        let mut gpios = vec![];
-        for num in nums {
-            let gpio = self.gpio_hashmap.remove(&num).unwrap();
-            gpios.push(gpio)
+seq!(N in 0..=48 {
+    impl GpioManager {
+        fn get_gpio_input(&mut self, num: u8) -> AnyInputPin {
+            match num {
+                #(
+                    N => self.gpio~N.take().unwrap().downgrade_input(),
+                )*
+                _ => panic!("Gpio not found")
+            }
         }
-        gpios
+        fn get_gpio_output(&mut self, num: u8) -> AnyOutputPin {
+            match num {
+                #(
+                    N => self.gpio~N.take().unwrap().downgrade_output(),
+                )*
+                _ => panic!("Gpio not found")
+            }
+        }
+        fn get_gpio_inoutput(&mut self, num: u8) -> AnyIOPin {
+            match num {
+                #(
+                    N => self.gpio~N.take().unwrap().downgrade(),
+                )*
+                _ => panic!("Gpio not found")
+            }
+        }
     }
-}
+});
 
 pub struct I2sManager {
-    pub i2s_hashmap: HashMap<u8, I2sEnum>,
+    i2s_hashmap: HashMap<u8, I2sEnum>,
 }
 
 impl I2sManager {
-    // consume the gpio from hashmap and return it. 
-    pub fn get_i2s(&mut self, num:u8) -> I2sEnum {
+    // consume the i2s from hashmap and return it. 
+    fn get_i2s_enum(&mut self, num:u8) -> I2sEnum {
         self.i2s_hashmap.remove(&num).unwrap()
     }
 }
 
 pub struct Esp32S3c1{
-    pub gpio_manager: GpioManager,
-    pub i2s_manager: I2sManager,
-    pub modem: Modem,
+    gpio_manager: GpioManager,
+    i2s_manager: I2sManager,
+    modem: Modem,
 }
 
 impl Esp32S3c1 {
     pub fn new() -> Self {
         let periphs = Peripherals::take().unwrap();
-        let gpio_manager = seq!(N in 0..=21 {
-            GpioManager{
-            #(
-                    gpio~N: Some(periphs.pins.gpio~N),
-            )*
-            }
-        });
-        let mut i2s_hashmap = HashMap::new();
-        /*let mut gpio_hashmap = HashMap::new();
-        let mut i2s_hashmap = HashMap::new();
 
-        // 22 up to and including 25 are not available on ESP32S3-c1.
-        seq!(N in 0..22 {
-            #(
-                    /* Downgrade turns every specific gpioNUMBER struct into an AnyIOPin.
-                    Loses info about the pin (for instance if it's input only or not)
-                    so careful when choosing pins.
-                    This may need a refactor when projects start using something else than
-                    input pins so the idf-hal can protect against choices that won't work. Or
-                    just need to pay attention choosing pins. */
-
-                    gpio_hashmap.insert(N, periphs.pins.gpio~N.downgrade());
-            )*
-        });
-        seq!(N in 26..=48 {
-            #(
-                    gpio_hashmap.insert(N, periphs.pins.gpio~N.downgrade());
-            )*
-        });
-        */
+        let mut i2s_hashmap = HashMap::new();    
         i2s_hashmap.insert(0, I2sEnum::I2S0(periphs.i2s0));
         i2s_hashmap.insert(1, I2sEnum::I2S1(periphs.i2s1));
 
-        //let gpio_manager = GpioManager{gpio_hashmap};
+        seq!(N in 0..=21 {  // want to render 0..=48 while skipping 22-25 but seq doesnt allow it
+           let gpio_manager = GpioManager {
+                    #(
+                    gpio~N: Some(periphs.pins.gpio~N),
+                    )*
+                    gpio22: None,
+                    gpio23: None,
+                    gpio24: None,
+                    gpio25: None,
+                    gpio26: Some(periphs.pins.gpio26),
+                    gpio27: Some(periphs.pins.gpio27),
+                    gpio28: Some(periphs.pins.gpio28),
+                    gpio29: Some(periphs.pins.gpio29),
+                    gpio30: Some(periphs.pins.gpio30),
+                    gpio31: Some(periphs.pins.gpio31),
+                    gpio32: Some(periphs.pins.gpio32),
+                    gpio33: Some(periphs.pins.gpio33),
+                    gpio34: Some(periphs.pins.gpio34),
+                    gpio35: Some(periphs.pins.gpio35),
+                    gpio36: Some(periphs.pins.gpio36),
+                    gpio37: Some(periphs.pins.gpio37),
+                    gpio38: Some(periphs.pins.gpio38),
+                    gpio39: Some(periphs.pins.gpio39),
+                    gpio40: Some(periphs.pins.gpio40),
+                    gpio41: Some(periphs.pins.gpio41),
+                    gpio42: Some(periphs.pins.gpio42),
+                    gpio43: Some(periphs.pins.gpio43),
+                    gpio44: Some(periphs.pins.gpio44),
+                    gpio45: Some(periphs.pins.gpio45),
+                    gpio46: Some(periphs.pins.gpio46),
+                    gpio47: Some(periphs.pins.gpio47),
+                    gpio48: Some(periphs.pins.gpio48),   
+                };
+         });
         let i2s_manager = I2sManager{i2s_hashmap};
 
         Esp32S3c1 {
@@ -124,7 +169,7 @@ impl Esp32S3c1 {
 // on board boot button gpio is 0 on my device
 pub fn get_on_board_boot_button<'a>(esp32: &mut Esp32S3c1, optional_gpio_num: Option<u8>) -> PinDriver<'a, AnyIOPin, Input> {
     let gpio_num = optional_gpio_num.unwrap_or(0);
-    let gpio = esp32.gpio_manager.get_gpio(gpio_num);
+    let gpio = esp32.gpio_manager.get_gpio_inoutput(gpio_num);
     let mut boot_button_driver = PinDriver::input(gpio).unwrap();
     boot_button_driver.set_pull(esp_idf_hal::gpio::Pull::Up).ok(); // on board boot button has a default pull up state
     boot_button_driver
@@ -134,13 +179,13 @@ pub fn get_on_board_boot_button<'a>(esp32: &mut Esp32S3c1, optional_gpio_num: Op
 pub fn get_on_board_led_ws2812_driver(esp32: &mut Esp32S3c1, channel_num: u8, optional_gpio_num: Option<u8>) -> Ws2812Esp32RmtDriver {
     let gpio_din_number = optional_gpio_num.unwrap_or(48);
     // make the gpio unavailable to be picked
-    esp32.gpio_manager.gpio_hashmap.remove(&gpio_din_number);
+    esp32.gpio_manager.get_gpio_inoutput(gpio_din_number);
     Ws2812Esp32RmtDriver::new(channel_num, gpio_din_number.into()).unwrap()
 }
 
 pub fn get_ws2812ledstrip_driver (esp32: &mut Esp32S3c1, channel_num: u8, gpio_din_number: u8 ) -> Ws2812Esp32RmtDriver {
     // make the gpio unavailable to be picked
-    esp32.gpio_manager.gpio_hashmap.remove(&gpio_din_number);
+    esp32.gpio_manager.get_gpio_inoutput(gpio_din_number);
     Ws2812Esp32RmtDriver::new(channel_num, gpio_din_number.into()).unwrap()
 }
 
@@ -160,6 +205,13 @@ pub fn get_mems_microphone_i2s_driver<'a>(
         i2s_rx_mems_mic::boot_get_driver(esp32, sample_rate, i2s_num, bclk_num, din_num, ws_num)
 }
 
-pub fn get_linejack_i2s_driver<'a, const B: usize, const D: usize, const W: usize, const I: usize> (esp32: &mut Esp32S3c1, sample_rate: u32) -> I2sDriver<'a, I2sRx> {
-        i2s_rx_adc_jack::boot_get_driver::<B, D, W, I>(esp32, sample_rate)
+pub fn get_linejack_i2s_driver<'a>( 
+    esp32: &mut Esp32S3c1,
+    sample_rate: u32,
+    i2s_num: u8, 
+    bclk_num: u8,
+    din_num: u8,
+    ws_num: u8
+    ) -> I2sDriver<'a, I2sRx> {
+        i2s_rx_adc_jack::boot_get_driver(esp32, sample_rate, i2s_num, bclk_num, din_num, ws_num)
 }
