@@ -144,15 +144,15 @@ impl NormalizedFFTResultBins {
 }
 
 struct ResultBins {
-    edges: Vec<f32>, // edges for the bins, 1 more edge than number of buns. Based on these edges the FFT is placed in bins. Every edge is a frequency value.
+    edges: Vec<f32>, // edges for the bins, 1 more edge than number of bins. Based on these edges the FFT is placed in bins. Every edge is a frequency value.
     bins: Vec<f32>,
     sample_rate: u32
 }
 impl ResultBins {
     fn new(num_samples: usize, mut num_bins: usize, sample_rate: u32) -> ResultBins {
         //set up the edges for the bins
-        let min_freq = (sample_rate as f32 / num_samples as f32).max(70.0); // Use 35 hz or the lowest possibly measured freq value, whichever is higher
-        let max_freq = (sample_rate as f32 / 2.0).min(1500.0); // Use 18000 Hz or Nyquist frequency (samp rate/2), whichever is lower
+        let min_freq = (sample_rate as f32 / num_samples as f32).max(70.0); // Use 70 hz or the lowest possibly measured freq value, whichever is higher
+        let max_freq = (sample_rate as f32 / 2.0).min(1500.0); // Use 1500 Hz or Nyquist frequency (samp rate/2), whichever is lower
 
         num_bins += 2; // because of first and last bin getting filled up with a big range. The two extra get removed on output
 
