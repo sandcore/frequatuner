@@ -98,7 +98,7 @@ pub fn paint_element_rgb(pixelcolors: &mut Vec<RGB>, graphic: &Vec<Vec<Option<RG
     }
 
     let room_for_drawing_x = LEDS_MAX_X as i32 - x_offset;
-    let room_for_drawing_y = LEDS_MAX_X as i32 - y_offset;
+    let room_for_drawing_y = LEDS_MAX_Y as i32 - y_offset;
 
     for (i, row) in graphic.iter().rev().enumerate() { //start rendering at bottom of graphic while all current elements are defined top-down
         for col in 0.. (graphic_width) { //each x
@@ -110,15 +110,15 @@ pub fn paint_element_rgb(pixelcolors: &mut Vec<RGB>, graphic: &Vec<Vec<Option<RG
             let mut matrix_x = x_offset + col as i32;
             let matrix_y = y_offset + i as i32;
 
+            if serpentine { // serpentine row
+                matrix_x = LEDS_MAX_X as i32 - 1 - x_offset - col as i32;
+            }
+
             if (col+1) > room_for_drawing_x as usize || (i+1) > room_for_drawing_y as usize {
                 continue
             }
             if matrix_x < 0 || matrix_y < 0 {
                 continue
-            }
-
-            if serpentine { // serpentine row
-                matrix_x = LEDS_MAX_X as i32 - 1 - x_offset - col as i32;
             }
 
             if let Some(rgb) = &row[col] {
