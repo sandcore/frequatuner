@@ -19,8 +19,7 @@ pub enum EqTunerModeEnum {
 // Used by the interrupt on the boot button
 static BOOTTON_PRESSED: AtomicBool = AtomicBool::new(false);
 
-/* Passed around a lot and don't change as far as the runtime is concerned.
-Current logic for equalizer mode is only made for a situation where the number of frequency bins in eq mode is equal to the number of rows in the ledmatrix (I'm 
+/* Current logic for equalizer mode is only made for a situation where the number of frequency bins in eq mode is equal to the number of rows in the ledmatrix (I'm 
 using vertically placed so 32 freq bins). To change that some minor changes in the frequency visualizer are necessary.*/
 pub const LEDS_MAX_X: usize = 8;
 pub const LEDS_MAX_Y: usize = 32;
@@ -59,7 +58,7 @@ impl <'a>HwCommander<'a> {
             audio_driver,
             ledmatrix_driver,
             mode_button_driver,
-            frame_duration: Duration::from_micros(50000), // 20 fps is more than enough. Won't be exact due to execution times but should be a fast enough constant refresh rate that doesnt glitch the matrix
+            frame_duration: Duration::from_micros(50000), // 20 fps is more than enough. Won't be exact due to execution times
             last_visual_update: SystemTime::now(),
         }
     }
