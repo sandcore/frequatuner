@@ -40,7 +40,7 @@ impl AudioProcessor {
             lowpass_filter,
             highpass_filter,
             sample_rate: *sample_rate,
-            frequalizer: audio_fft_binner::AudioFrequalizer::new(LEDS_MAX_Y),
+            frequalizer: audio_fft_binner::AudioFrequalizer::new(LEDS_MAX_Y, *sample_rate),
             tuner: audio_tuner::GiTuner::new()
         }
     }
@@ -49,7 +49,7 @@ impl AudioProcessor {
         let lowhighpass_audio_vals = self.apply_lowhighpass(audio_values);
         match mode {
             EqTunerModeEnum::Equalizer => {
-                self.frequalizer.frequalize(lowhighpass_audio_vals, self.sample_rate)
+                self.frequalizer.frequalize(lowhighpass_audio_vals)
             },
             EqTunerModeEnum::Tuner => {
                 self.tuner.tune(lowhighpass_audio_vals, self.sample_rate)
