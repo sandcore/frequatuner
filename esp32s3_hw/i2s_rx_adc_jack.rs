@@ -19,10 +19,10 @@ pub fn boot_get_driver<'i>(
         let gpio_cfg = StdGpioConfig::new(false,false,false);
         let i2s_std_config = StdConfig::new(channel_cfg, clk_config, slot_config, gpio_cfg);
 
-        let bclk = esp32.gpio_manager.get_gpio_inoutput(bclk_num);
+        let bclk = esp32.gpio_manager.get_gpio_input_output(bclk_num);
         let din = esp32.gpio_manager.get_gpio_input(din_num);
         let mclk = AnyIOPin::none(); // not used, esp systemclock used
-        let ws = esp32.gpio_manager.get_gpio_inoutput(ws_num);
+        let ws = esp32.gpio_manager.get_gpio_input_output(ws_num);
         
         let i2s_choice = esp32.i2s_manager.get_i2s_enum(i2s_num);
 

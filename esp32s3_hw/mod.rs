@@ -28,6 +28,32 @@ Would be nicer to have a ledmatrix driver that works with esp_idf_hal but low pr
 Currently not supporting driver shutdown / returning resources as I don't need it.
 */
 
+pub struct Esp32S3c1{
+    gpio_manager: GpioManager,
+    i2s_manager: I2sManager,
+    modem: Modem,
+}
+
+impl Esp32S3c1 {
+    pub fn new() -> Self {
+        let periphs = Peripherals::take().unwrap();
+
+        let mut i2s_hashmap = HashMap::new();    
+        i2s_hashmap.insert(0, I2sEnum::I2S0(periphs.i2s0));
+        i2s_hashmap.insert(1, I2sEnum::I2S1(periphs.i2s1));
+
+        let modem = periphs.modem;
+        let gpio_manager = GpioManager::new(periphs);
+        let i2s_manager = I2sManager{i2s_hashmap};
+
+        Esp32S3c1 {
+            gpio_manager,
+            i2s_manager,
+            modem
+        }
+    }
+}
+
 pub enum I2sEnum {
     I2S0(I2S0),
     I2S1(I2S1)
@@ -68,8 +94,43 @@ seq!(N in 0..=21 { // want to render 0..=48 while skipping 22-25 but seq doesnt 
     }
 });
 
-seq!(N in 0..=48 {
+seq!(N in 0..=21 {
     impl GpioManager {
+        fn new(periphs: Peripherals) -> Self {
+            GpioManager {
+                #(
+                gpio~N: Some(periphs.pins.gpio~N),
+                )*
+                gpio22: None,
+                gpio23: None,
+                gpio24: None,
+                gpio25: None,
+                gpio26: Some(periphs.pins.gpio26),
+                gpio27: Some(periphs.pins.gpio27),
+                gpio28: Some(periphs.pins.gpio28),
+                gpio29: Some(periphs.pins.gpio29),
+                gpio30: Some(periphs.pins.gpio30),
+                gpio31: Some(periphs.pins.gpio31),
+                gpio32: Some(periphs.pins.gpio32),
+                gpio33: Some(periphs.pins.gpio33),
+                gpio34: Some(periphs.pins.gpio34),
+                gpio35: Some(periphs.pins.gpio35),
+                gpio36: Some(periphs.pins.gpio36),
+                gpio37: Some(periphs.pins.gpio37),
+                gpio38: Some(periphs.pins.gpio38),
+                gpio39: Some(periphs.pins.gpio39),
+                gpio40: Some(periphs.pins.gpio40),
+                gpio41: Some(periphs.pins.gpio41),
+                gpio42: Some(periphs.pins.gpio42),
+                gpio43: Some(periphs.pins.gpio43),
+                gpio44: Some(periphs.pins.gpio44),
+                gpio45: Some(periphs.pins.gpio45),
+                gpio46: Some(periphs.pins.gpio46),
+                gpio47: Some(periphs.pins.gpio47),
+                gpio48: Some(periphs.pins.gpio48),
+            }
+        }
+
         fn get_gpio_input(&mut self, num: u8) -> AnyInputPin {
             match num {
                 #(
@@ -86,7 +147,7 @@ seq!(N in 0..=48 {
                 _ => panic!("Gpio not found")
             }
         }
-        fn get_gpio_inoutput(&mut self, num: u8) -> AnyIOPin {
+        fn get_gpio_input_output(&mut self, num: u8) -> AnyIOPin {
             match num {
                 #(
                     N => self.gpio~N.take().unwrap().downgrade(),
@@ -108,68 +169,11 @@ impl I2sManager {
     }
 }
 
-pub struct Esp32S3c1{
-    gpio_manager: GpioManager,
-    i2s_manager: I2sManager,
-    modem: Modem,
-}
-
-impl Esp32S3c1 {
-    pub fn new() -> Self {
-        let periphs = Peripherals::take().unwrap();
-
-        let mut i2s_hashmap = HashMap::new();    
-        i2s_hashmap.insert(0, I2sEnum::I2S0(periphs.i2s0));
-        i2s_hashmap.insert(1, I2sEnum::I2S1(periphs.i2s1));
-
-        seq!(N in 0..=21 {  // want to render 0..=48 while skipping 22-25 but seq doesnt allow it
-           let gpio_manager = GpioManager {
-                    #(
-                    gpio~N: Some(periphs.pins.gpio~N),
-                    )*
-                    gpio22: None,
-                    gpio23: None,
-                    gpio24: None,
-                    gpio25: None,
-                    gpio26: Some(periphs.pins.gpio26),
-                    gpio27: Some(periphs.pins.gpio27),
-                    gpio28: Some(periphs.pins.gpio28),
-                    gpio29: Some(periphs.pins.gpio29),
-                    gpio30: Some(periphs.pins.gpio30),
-                    gpio31: Some(periphs.pins.gpio31),
-                    gpio32: Some(periphs.pins.gpio32),
-                    gpio33: Some(periphs.pins.gpio33),
-                    gpio34: Some(periphs.pins.gpio34),
-                    gpio35: Some(periphs.pins.gpio35),
-                    gpio36: Some(periphs.pins.gpio36),
-                    gpio37: Some(periphs.pins.gpio37),
-                    gpio38: Some(periphs.pins.gpio38),
-                    gpio39: Some(periphs.pins.gpio39),
-                    gpio40: Some(periphs.pins.gpio40),
-                    gpio41: Some(periphs.pins.gpio41),
-                    gpio42: Some(periphs.pins.gpio42),
-                    gpio43: Some(periphs.pins.gpio43),
-                    gpio44: Some(periphs.pins.gpio44),
-                    gpio45: Some(periphs.pins.gpio45),
-                    gpio46: Some(periphs.pins.gpio46),
-                    gpio47: Some(periphs.pins.gpio47),
-                    gpio48: Some(periphs.pins.gpio48),   
-                };
-         });
-        let i2s_manager = I2sManager{i2s_hashmap};
-
-        Esp32S3c1 {
-            gpio_manager,
-            i2s_manager,
-            modem: periphs.modem
-        }
-    }
-}
 
 // on board boot button gpio is 0 on my device
 pub fn get_on_board_boot_button<'a>(esp32: &mut Esp32S3c1, optional_gpio_num: Option<u8>) -> PinDriver<'a, AnyIOPin, Input> {
     let gpio_num = optional_gpio_num.unwrap_or(0);
-    let gpio = esp32.gpio_manager.get_gpio_inoutput(gpio_num);
+    let gpio = esp32.gpio_manager.get_gpio_input_output(gpio_num);
     let mut boot_button_driver = PinDriver::input(gpio).unwrap();
     boot_button_driver.set_pull(esp_idf_hal::gpio::Pull::Up).ok(); // on board boot button has a default pull up state
     boot_button_driver
@@ -179,13 +183,13 @@ pub fn get_on_board_boot_button<'a>(esp32: &mut Esp32S3c1, optional_gpio_num: Op
 pub fn get_on_board_led_ws2812_driver(esp32: &mut Esp32S3c1, channel_num: u8, optional_gpio_num: Option<u8>) -> Ws2812Esp32RmtDriver {
     let gpio_din_number = optional_gpio_num.unwrap_or(48);
     // make the gpio unavailable to be picked
-    esp32.gpio_manager.get_gpio_inoutput(gpio_din_number);
+    esp32.gpio_manager.get_gpio_input_output(gpio_din_number);
     Ws2812Esp32RmtDriver::new(channel_num, gpio_din_number.into()).unwrap()
 }
 
 pub fn get_ws2812ledstrip_driver (esp32: &mut Esp32S3c1, channel_num: u8, gpio_din_number: u8 ) -> Ws2812Esp32RmtDriver {
     // make the gpio unavailable to be picked
-    esp32.gpio_manager.get_gpio_inoutput(gpio_din_number);
+    esp32.gpio_manager.get_gpio_input_output(gpio_din_number);
     Ws2812Esp32RmtDriver::new(channel_num, gpio_din_number.into()).unwrap()
 }
 
