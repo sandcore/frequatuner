@@ -118,7 +118,7 @@ impl FFTOverSamples {
         }
 
         // Gradually adapt range
-        /*let adaptation_rate = 0.1;
+        let adaptation_rate = 0.1;
         res_edges.current_min_freq += (min_freq - res_edges.current_min_freq) * adaptation_rate;
         res_edges.current_max_freq += (max_freq - res_edges.current_max_freq) * adaptation_rate;
 
@@ -130,7 +130,7 @@ impl FFTOverSamples {
             .max(res_edges.absolute_min_freq)
             .min(res_edges.absolute_max_freq);
 
-        res_edges.create_log_bin_edges();*/
+        res_edges.create_log_bin_edges();
 
         AdaptedEdges {
             ffted_samples: self.ffted_samples
