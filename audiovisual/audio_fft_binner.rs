@@ -18,13 +18,14 @@ pub struct AudioFrequalizer {
     pub eq_bins: Vec<f32>
 }
 
+// Number of samples and sample rate determine the min and max frequencies that are measured by the FFT
 impl AudioFrequalizer {
     pub fn new(num_bins: usize, sample_rate: u32) -> Self {
         let samples_max = 2048; // 2048 was about the max I could fill the FFT transform with before crashing the ESP and it gives a good range of frequencies, slightly more than can be heard by most humans.
         let eq_bins = Vec::with_capacity(num_bins as usize);
 
         // set up the result bins, need to init with edges
-        let mut res_edges = AdaptiveResultEdges::new(samples_max, sample_rate);
+        let mut res_edges = AdaptiveResultEdges::new(samples_max, num_bins, sample_rate);
         res_edges.create_log_bin_edges(LEDS_MAX_Y);
 
         AudioFrequalizer {
@@ -36,8 +37,6 @@ impl AudioFrequalizer {
         }
     }
 
-    // The caller chooses how many frequency bins are desired. A bigger led matrix will have room to display more bins than a smaller.
-    // Number of samples and sample rate determine the min and max frequencies that are measured by the FFT
     pub fn frequalize(&mut self, mut samples: Vec<f32>) {
         self.samples_buffer.append(&mut samples);
 
@@ -47,17 +46,15 @@ impl AudioFrequalizer {
             // do the sequential FFT processing steps
             let raw_buffer = RawBuffer::new(samples_to_process);
             let fft_over_samples = raw_buffer.fft_transform(&mut self.fft_planner);
-            let fft_result_bins = fft_over_samples.distribute_fft_to_fixed_bins(&mut self.res_edges);
+            let adapted_edges = fft_over_samples.adapt_edges(&mut self.res_edges);
+            let fft_result_bins = adapted_edges.distribute_fft_to_fixed_bins(&mut self.res_edges);
             let normalized_fft_result_bins = fft_result_bins.normalize_logarithmic_bins();
             self.eq_bins = normalized_fft_result_bins.output();
-
-            // audio processed, now adjust the frequency range for the 
         }
     }
 }
 
-// raw buffer of samples -> filter -> fft applied over samples -> fft distributed to result bins -> fft in result bins normalized. Every state change destroys prev state.
-
+// raw buffer of samples -> filter -> fft applied over samples -> adap adaptive bin edges -> fft distributed to result bins -> fft in result bins normalized. Every state change destroys prev state.
 pub struct RawBuffer{
     samples: Vec<f32>,
 }
@@ -65,6 +62,11 @@ pub struct RawBuffer{
 struct FFTOverSamples {
     ffted_samples: Vec<Complex<f32>>
 }
+
+struct AdaptedEdges {
+    ffted_samples: Vec<Complex<f32>>
+}
+
 struct FFTResultBins{
     bins: Vec<f32>
 }
@@ -92,6 +94,16 @@ impl RawBuffer {
 }
 
 impl FFTOverSamples {
+    fn adapt_edges(self, res_edges: &mut AdaptiveResultEdges) -> AdaptedEdges {
+        // get peaks in new measurements, adapt edges slowly to the min and max range of peaks in the latest signal
+        
+
+        AdaptedEdges {
+            ffted_samples: self.ffted_samples
+        }
+    }
+}
+impl AdaptedEdges{
     fn distribute_fft_to_fixed_bins(self, res_edges: &mut AdaptiveResultEdges) -> FFTResultBins {
         //println!("{:?}", res_bins.bins);
         let mut result = vec![0.0; res_edges.edges.len() - 1];
@@ -155,31 +167,41 @@ impl NormalizedFFTResultBins {
 // Adaptive result bins: based on the frequency ranges adjust the bins slowly to the measured range.
 struct AdaptiveResultEdges {
     edges: Vec<f32>, // edges for the bins, 1 more edge than number of bins. Based on these edges the FFT is placed in bins. Every edge is a frequency value.
+    num_bins: usize,
     sample_rate: u32,
-    min_freq: f32,
-    max_freq: f32
+    absolute_min_freq: f32,
+    absolute_max_freq: f32,
+    current_min_freq: f32,
+    current_max_freq: f32,
+    prev_min_freq: f32,
+    prev_max_freq: f32
 }
 impl AdaptiveResultEdges {
-    fn new(num_samples: usize, sample_rate: u32) -> AdaptiveResultEdges {
+    fn new(num_samples: usize, num_bins: usize, sample_rate: u32) -> AdaptiveResultEdges {
         //set up the edges for the bins. 
         let min_freq = (sample_rate as f32 / num_samples as f32).max(30.0); // Use 30 hz or the lowest possibly measured freq value, whichever is higher
         let max_freq = (sample_rate as f32 / 2.0).min(18000.0); // Use 18000 Hz or Nyquist frequency (samp rate/2), whichever is lower
 
         AdaptiveResultEdges {
             edges: vec![],
+            num_bins,
             sample_rate,
-            min_freq,
-            max_freq
+            absolute_min_freq: min_freq,
+            absolute_max_freq: max_freq,
+            current_min_freq: 0.0,
+            current_max_freq: 0.0,
+            prev_min_freq: 0.0,
+            prev_max_freq: 0.0
         }
     }
 
-    fn create_log_bin_edges(&mut self, mut num_bins: usize) {
-        num_bins += 2; // Because first and last bin are getting filled up with some (electrical?) noise. The two extra get removed on output
+    fn create_log_bin_edges(&mut self) {
+        let num_edges = self.num_bins + 2 + 1; // Because first and last bin are getting filled up with some (electrical?) noise. The two extra get removed on outputs
 
-        let mut edges = Vec::with_capacity(num_bins as usize + 1);
-        for i in 0..=num_bins {
-            let t = i as f32 / num_bins as f32;
-            let freq = self.min_freq * (self.max_freq / self.min_freq).powf(t);
+        let mut edges = Vec::with_capacity(num_edges as usize);
+        for i in 0..=num_edges {
+            let t = i as f32 / num_edges as f32;
+            let freq = self.absolute_min_freq * (self.absolute_max_freq / self.absolute_min_freq).powf(t);
             edges.push(freq);
         }
         self.edges = edges;
