@@ -192,7 +192,7 @@ impl FadedBarsDrawn {
             let line_graphic = super::graphics::line(LEDS_MAX_X, RGB{r:newbar_color.r, g:newbar_color.g, b:newbar_color.b});
             let line_shift = LEDS_MAX_X as u32 - amount_leds_mag;
             
-            paint_element_rgb(&mut self.color_vec, &line_graphic, line_shift as i32, row as i32);
+            //paint_element_rgb(&mut self.color_vec, &line_graphic, line_shift as i32, row as i32);
             
             for i in 0..amount_leds_mag as usize {
                 if row % 2 == 0 { // serpentine

@@ -26,7 +26,7 @@ impl AudioFrequalizer {
 
         // set up the result bins, need to init with edges
         let mut res_edges = AdaptiveResultEdges::new(samples_max, num_bins, sample_rate);
-        res_edges.create_log_bin_edges(LEDS_MAX_Y);
+        res_edges.create_log_bin_edges();
 
         AudioFrequalizer {
             fft_planner: FftPlanner::new(),
@@ -95,8 +95,42 @@ impl RawBuffer {
 
 impl FFTOverSamples {
     fn adapt_edges(self, res_edges: &mut AdaptiveResultEdges) -> AdaptedEdges {
-        // get peaks in new measurements, adapt edges slowly to the min and max range of peaks in the latest signal
-        
+        // adapt edges slowly to the min and max range of peaks in the latest signal
+        let fft_len = self.ffted_samples.len();
+        let freq_resolution = res_edges.sample_rate as f32/ fft_len as f32;
+        let mut min_freq = res_edges.absolute_min_freq;
+        let mut max_freq = res_edges.absolute_max_freq;
+
+        for (i, &complex) in self.ffted_samples.iter().enumerate().take(fft_len/2 - 1) {
+            let mag = complex.norm(); // normalize the magnitudes.
+            if mag > 0.0 {
+                min_freq = i as f32 * freq_resolution;
+                break;
+            }
+        }
+
+        for (i, &complex) in self.ffted_samples.iter().enumerate().take(fft_len/2 - 1).rev() {
+            let mag = complex.norm(); // normalize the magnitudes.
+            if mag > 0.0 {
+                max_freq =  i as f32 * freq_resolution;
+                break;
+            }
+        }
+
+        // Gradually adapt range
+        /*let adaptation_rate = 0.1;
+        res_edges.current_min_freq += (min_freq - res_edges.current_min_freq) * adaptation_rate;
+        res_edges.current_max_freq += (max_freq - res_edges.current_max_freq) * adaptation_rate;
+
+        // Ensure current frequencies stay within absolute limits
+        res_edges.current_min_freq = res_edges.current_min_freq
+            .max(res_edges.absolute_min_freq)
+            .min(res_edges.absolute_max_freq);
+        res_edges.current_max_freq = res_edges.current_max_freq
+            .max(res_edges.absolute_min_freq)
+            .min(res_edges.absolute_max_freq);
+
+        res_edges.create_log_bin_edges();*/
 
         AdaptedEdges {
             ffted_samples: self.ffted_samples
@@ -173,8 +207,6 @@ struct AdaptiveResultEdges {
     absolute_max_freq: f32,
     current_min_freq: f32,
     current_max_freq: f32,
-    prev_min_freq: f32,
-    prev_max_freq: f32
 }
 impl AdaptiveResultEdges {
     fn new(num_samples: usize, num_bins: usize, sample_rate: u32) -> AdaptiveResultEdges {
@@ -188,10 +220,8 @@ impl AdaptiveResultEdges {
             sample_rate,
             absolute_min_freq: min_freq,
             absolute_max_freq: max_freq,
-            current_min_freq: 0.0,
-            current_max_freq: 0.0,
-            prev_min_freq: 0.0,
-            prev_max_freq: 0.0
+            current_min_freq: min_freq,
+            current_max_freq: max_freq,
         }
     }
 
@@ -201,7 +231,7 @@ impl AdaptiveResultEdges {
         let mut edges = Vec::with_capacity(num_edges as usize);
         for i in 0..=num_edges {
             let t = i as f32 / num_edges as f32;
-            let freq = self.absolute_min_freq * (self.absolute_max_freq / self.absolute_min_freq).powf(t);
+            let freq = self.current_min_freq * (self.current_max_freq / self.current_min_freq).powf(t);
             edges.push(freq);
         }
         self.edges = edges;
