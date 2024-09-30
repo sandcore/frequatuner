@@ -54,16 +54,45 @@ impl Esp32S3c1 {
     }
 }
 
+struct I2sManager {
+    i2s_hashmap: HashMap<u8, I2sEnum>,
+}
+
+impl I2sManager {
+    // consume the i2s from hashmap and return it. 
+    fn get_i2s_enum(&mut self, num:u8) -> I2sEnum {
+        self.i2s_hashmap.remove(&num).unwrap()
+    }
+}
+
 pub enum I2sEnum {
     I2S0(I2S0),
     I2S1(I2S1)
 }
 
-seq!(N in 0..=21 { // want to render 0..=48 while skipping 22-25 but seq doesnt allow it
-    struct GpioManager {
-        #(
-        gpio~N: Option<Gpio~N>,
-        )*
+struct GpioManager {
+    gpio0: Option<Gpio0>,
+    gpio1: Option<Gpio1>,
+    gpio2: Option<Gpio2>,
+    gpio3: Option<Gpio3>,
+    gpio4: Option<Gpio4>,
+    gpio5: Option<Gpio5>,
+    gpio6: Option<Gpio6>,
+    gpio7: Option<Gpio7>,
+    gpio8: Option<Gpio8>,
+    gpio9: Option<Gpio9>,
+    gpio10: Option<Gpio10>,
+    gpio11: Option<Gpio11>,
+    gpio12: Option<Gpio12>,
+    gpio13: Option<Gpio13>,
+    gpio14: Option<Gpio14>,
+    gpio15: Option<Gpio15>,
+    gpio16: Option<Gpio16>,
+    gpio17: Option<Gpio17>,
+    gpio18: Option<Gpio18>,
+    gpio19: Option<Gpio19>,
+    gpio20: Option<Gpio20>,
+    gpio21: Option<Gpio21>,
     gpio22: Option<AnyIOPin>,
     gpio23: Option<AnyIOPin>,
     gpio24: Option<AnyIOPin>,
@@ -90,17 +119,35 @@ seq!(N in 0..=21 { // want to render 0..=48 while skipping 22-25 but seq doesnt 
     gpio45: Option<Gpio45>,
     gpio46: Option<Gpio46>,
     gpio47: Option<Gpio47>,
-    gpio48: Option<Gpio48>,   
-    }
-});
+    gpio48: Option<Gpio48>,
+}
 
-seq!(N in 0..=21 {
+seq!(N in 0..=48 {
     impl GpioManager {
         fn new(pins: Pins) -> Self {
             GpioManager {
-                #(
-                gpio~N: Some(pins.gpio~N),
-                )*
+                gpio0: Some(pins.gpio0),
+                gpio1: Some(pins.gpio1),
+                gpio2: Some(pins.gpio2),
+                gpio3: Some(pins.gpio3),
+                gpio4: Some(pins.gpio4),
+                gpio5: Some(pins.gpio5),
+                gpio6: Some(pins.gpio6),
+                gpio7: Some(pins.gpio7),
+                gpio8: Some(pins.gpio8),
+                gpio9: Some(pins.gpio9),
+                gpio10: Some(pins.gpio10),
+                gpio11: Some(pins.gpio11),
+                gpio12: Some(pins.gpio12),
+                gpio13: Some(pins.gpio13),
+                gpio14: Some(pins.gpio14),
+                gpio15: Some(pins.gpio15),
+                gpio16: Some(pins.gpio16),
+                gpio17: Some(pins.gpio17),
+                gpio18: Some(pins.gpio18),
+                gpio19: Some(pins.gpio19),
+                gpio20: Some(pins.gpio20),
+                gpio21: Some(pins.gpio21),
                 gpio22: None,
                 gpio23: None,
                 gpio24: None,
@@ -132,6 +179,9 @@ seq!(N in 0..=21 {
         }
 
         fn get_gpio_input(&mut self, num: u8) -> AnyInputPin {
+            if (22..=25).contains(&num) {
+                panic!("Gpio 22-25 are not available")
+            }
             match num {
                 #(
                     N => self.gpio~N.take().unwrap().downgrade_input(),
@@ -139,7 +189,11 @@ seq!(N in 0..=21 {
                 _ => panic!("Gpio not found")
             }
         }
+
         fn get_gpio_output(&mut self, num: u8) -> AnyOutputPin {
+            if (22..=25).contains(&num) {
+                panic!("Gpio 22-25 are not available")
+            }
             match num {
                 #(
                     N => self.gpio~N.take().unwrap().downgrade_output(),
@@ -147,7 +201,11 @@ seq!(N in 0..=21 {
                 _ => panic!("Gpio not found")
             }
         }
+
         fn get_gpio_input_output(&mut self, num: u8) -> AnyIOPin {
+            if (22..=25).contains(&num) {
+                panic!("Gpio 22-25 are not available")
+            }
             match num {
                 #(
                     N => self.gpio~N.take().unwrap().downgrade(),
@@ -157,18 +215,6 @@ seq!(N in 0..=21 {
         }
     }
 });
-
-pub struct I2sManager {
-    i2s_hashmap: HashMap<u8, I2sEnum>,
-}
-
-impl I2sManager {
-    // consume the i2s from hashmap and return it. 
-    fn get_i2s_enum(&mut self, num:u8) -> I2sEnum {
-        self.i2s_hashmap.remove(&num).unwrap()
-    }
-}
-
 
 // on board boot button gpio is 0 on my device
 pub fn get_on_board_boot_button<'a>(esp32: &mut Esp32S3c1, optional_gpio_num: Option<u8>) -> PinDriver<'a, AnyIOPin, Input> {
