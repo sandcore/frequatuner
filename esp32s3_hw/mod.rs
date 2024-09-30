@@ -43,8 +43,8 @@ impl Esp32S3c1 {
         i2s_hashmap.insert(1, I2sEnum::I2S1(periphs.i2s1));
 
         let modem = periphs.modem;
-        let gpio_manager = GpioManager::new(periphs);
         let i2s_manager = I2sManager{i2s_hashmap};
+        let gpio_manager= GpioManager::new(periphs.pins);
 
         Esp32S3c1 {
             gpio_manager,
@@ -96,38 +96,38 @@ seq!(N in 0..=21 { // want to render 0..=48 while skipping 22-25 but seq doesnt 
 
 seq!(N in 0..=21 {
     impl GpioManager {
-        fn new(periphs: Peripherals) -> Self {
+        fn new(pins: Pins) -> Self {
             GpioManager {
                 #(
-                gpio~N: Some(periphs.pins.gpio~N),
+                gpio~N: Some(pins.gpio~N),
                 )*
                 gpio22: None,
                 gpio23: None,
                 gpio24: None,
                 gpio25: None,
-                gpio26: Some(periphs.pins.gpio26),
-                gpio27: Some(periphs.pins.gpio27),
-                gpio28: Some(periphs.pins.gpio28),
-                gpio29: Some(periphs.pins.gpio29),
-                gpio30: Some(periphs.pins.gpio30),
-                gpio31: Some(periphs.pins.gpio31),
-                gpio32: Some(periphs.pins.gpio32),
-                gpio33: Some(periphs.pins.gpio33),
-                gpio34: Some(periphs.pins.gpio34),
-                gpio35: Some(periphs.pins.gpio35),
-                gpio36: Some(periphs.pins.gpio36),
-                gpio37: Some(periphs.pins.gpio37),
-                gpio38: Some(periphs.pins.gpio38),
-                gpio39: Some(periphs.pins.gpio39),
-                gpio40: Some(periphs.pins.gpio40),
-                gpio41: Some(periphs.pins.gpio41),
-                gpio42: Some(periphs.pins.gpio42),
-                gpio43: Some(periphs.pins.gpio43),
-                gpio44: Some(periphs.pins.gpio44),
-                gpio45: Some(periphs.pins.gpio45),
-                gpio46: Some(periphs.pins.gpio46),
-                gpio47: Some(periphs.pins.gpio47),
-                gpio48: Some(periphs.pins.gpio48),
+                gpio26: Some(pins.gpio26),
+                gpio27: Some(pins.gpio27),
+                gpio28: Some(pins.gpio28),
+                gpio29: Some(pins.gpio29),
+                gpio30: Some(pins.gpio30),
+                gpio31: Some(pins.gpio31),
+                gpio32: Some(pins.gpio32),
+                gpio33: Some(pins.gpio33),
+                gpio34: Some(pins.gpio34),
+                gpio35: Some(pins.gpio35),
+                gpio36: Some(pins.gpio36),
+                gpio37: Some(pins.gpio37),
+                gpio38: Some(pins.gpio38),
+                gpio39: Some(pins.gpio39),
+                gpio40: Some(pins.gpio40),
+                gpio41: Some(pins.gpio41),
+                gpio42: Some(pins.gpio42),
+                gpio43: Some(pins.gpio43),
+                gpio44: Some(pins.gpio44),
+                gpio45: Some(pins.gpio45),
+                gpio46: Some(pins.gpio46),
+                gpio47: Some(pins.gpio47),
+                gpio48: Some(pins.gpio48),
             }
         }
 
