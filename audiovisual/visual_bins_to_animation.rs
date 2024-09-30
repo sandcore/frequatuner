@@ -197,7 +197,7 @@ impl FadedBarsDrawn {
             // Start fading the bars that are new in the next cycle.
             for i in 0..amount_leds_mag {
                 if row % 2 == 0 {
-                    let row_start_index = row*LEDS_MAX_X + LEDS_MAX_X;
+                    let row_start_index = row*LEDS_MAX_X - LEDS_MAX_X;
                     painter.bar_ghosts[row_start_index - i] = Some(RGB{r:newbar_color.r, g:newbar_color.g, b:newbar_color.b});
                 }
                 else {
