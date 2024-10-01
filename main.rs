@@ -12,11 +12,6 @@ mod audiovisual; // process audio feed and output to led matrix
 use audiovisual::graphics;
 use audiovisual::{AudioProcessor, VisualProcessor};
 
-pub enum EqTunerModeEnum {
-    Equalizer,
-    Tuner
-}
-
 // Used by the interrupt on the boot button
 static BOOTTON_PRESSED: AtomicBool = AtomicBool::new(false);
 
@@ -122,6 +117,11 @@ impl FrequalizerMode {
             }
         }
     }
+}
+
+pub enum EqTunerModeEnum {
+    Equalizer,
+    Tuner
 }
 
 fn main() {
