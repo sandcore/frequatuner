@@ -36,19 +36,28 @@ impl <'a>HwCommander<'a> {
         let audio_driver = esp32s3_hw::get_linejack_i2s_driver(&mut esp32, AUDIO_SAMPLE_RATE, AUDIO_IN_I2S, AUDIO_IN_BCLK, AUDIO_IN_DIN, AUDIO_IN_WS);        
         let ledmatrix_driver = esp32s3_hw::get_ws2812ledstrip_driver(&mut esp32, LEDS_CHANNEL, LEDS_IN);
         
-        // set up the mode switch button and set an interrupt on it
-        let mut mode_button_driver = esp32s3_hw::get_on_board_boot_button(&mut esp32, None);
+        
+        // Use this commented out block when no external button is connected
+        /*let mut mode_button_driver = esp32s3_hw::get_on_board_boot_button(&mut esp32, None);
         mode_button_driver.set_interrupt_type(esp_idf_hal::gpio::InterruptType::NegEdge).ok();
         unsafe {
             mode_button_driver.subscribe(boot_button_callback).expect("Interrupt subscribe failed");
         }
-        mode_button_driver.enable_interrupt().ok();
+        mode_button_driver.enable_interrupt().ok();*/
+
+        // set up the mode switch button and set an interrupt on it
+        let mut external_mode_button_driver = esp32s3_hw::get_pin_driver_input_button(&mut esp32, 3);
+        external_mode_button_driver.set_interrupt_type(esp_idf_hal::gpio::InterruptType::NegEdge).expect("Failed to set interrupt on external button");
+        unsafe {
+            external_mode_button_driver.subscribe(boot_button_callback).expect("Interrupt subscribe failed");
+        }
+        external_mode_button_driver.enable_interrupt().expect("Enabling external mode button interrupt failed");
 
         HwCommander {
             audiobuffer,
             audio_driver,
             ledmatrix_driver,
-            mode_button_driver,
+            mode_button_driver: external_mode_button_driver,
             frame_duration: Duration::from_micros(50000), // 20 fps is more than enough. Won't be exact due to execution times
             last_visual_update: SystemTime::now(),
         }
