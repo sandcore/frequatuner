@@ -1,6 +1,5 @@
 use std::f32::consts::PI;
 use crate::{LEDS_MAX_X, LEDS_MAX_Y};
-
 use super::graphics::*;
 
 /*
@@ -191,18 +190,24 @@ impl FadedBarsDrawn {
             let newbar_color = self.get_newbar_color(painter, &eq_bins[row]);
             let line_graphic = super::graphics::line(LEDS_MAX_X, RGB{r:newbar_color.r, g:newbar_color.g, b:newbar_color.b});
             let line_shift = LEDS_MAX_X - amount_leds_mag;
-
             paint_element_rgb(&mut self.color_vec, &line_graphic, line_shift as i32, row as i32);
 
             // Start fading the bars that are new in the next cycle.
+            if amount_leds_mag == 0 {
+                continue
+            } 
             for i in 0..amount_leds_mag {
-                if row % 2 == 0 {
-                    let row_start_index = row*LEDS_MAX_X - LEDS_MAX_X;
-                    painter.bar_ghosts[row_start_index - i] = Some(RGB{r:newbar_color.r, g:newbar_color.g, b:newbar_color.b});
+                let index_to_paint;
+
+                if row % 2 == 1 { // serpentine
+                    let row_start_index = row*LEDS_MAX_X + LEDS_MAX_X - 1 - line_shift;
+                    index_to_paint = row_start_index - i; // serpentine goes from right to left which is the good direction
+                    painter.bar_ghosts[index_to_paint] = Some(RGB{r:newbar_color.r, g:newbar_color.g, b:newbar_color.b});
                 }
                 else {
-                    let row_start_index = row*LEDS_MAX_X;
-                    painter.bar_ghosts[row_start_index+i] = Some(RGB{r:newbar_color.r, g:newbar_color.g, b:newbar_color.b});
+                    let row_start_index = row*LEDS_MAX_X + line_shift;
+                    index_to_paint = row_start_index + i;
+                    painter.bar_ghosts[index_to_paint] = Some(RGB{r:newbar_color.r, g:newbar_color.g, b:newbar_color.b});
                 }
             }
         }

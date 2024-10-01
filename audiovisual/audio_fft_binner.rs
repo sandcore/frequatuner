@@ -140,7 +140,6 @@ impl FFTOverSamples {
 }
 impl AdaptedEdges{
     fn distribute_fft_to_fixed_bins(self, res_edges: &mut AdaptiveResultEdges) -> FFTResultBins {
-        //println!("{:?}", res_bins.bins);
         let mut result = vec![0.0; res_edges.edges.len() - 1];
         let fft_len = self.ffted_samples.len();
         let freq_resolution = res_edges.sample_rate as f32/ fft_len as f32;
@@ -228,13 +227,14 @@ impl AdaptiveResultEdges {
 
     fn create_log_bin_edges(&mut self) {
         let num_edges = self.num_bins + 2 + 1; // Because first and last bin are getting filled up with some (electrical?) noise. The two extra get removed on outputs
-
         let mut edges = Vec::with_capacity(num_edges as usize);
-        for i in 0..=num_edges {
+        
+        for i in 0..num_edges {
             let t = i as f32 / num_edges as f32;
             let freq = self.current_min_freq * (self.current_max_freq / self.current_min_freq).powf(t);
             edges.push(freq);
         }
+        
         self.edges = edges;
     }
 }
