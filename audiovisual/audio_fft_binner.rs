@@ -100,10 +100,11 @@ impl FFTOverSamples {
         let freq_resolution = res_edges.sample_rate as f32/ fft_len as f32;
         let mut min_freq = res_edges.absolute_min_freq;
         let mut max_freq = res_edges.absolute_max_freq;
+        let mag_threshold = 0.2;
 
         for (i, &complex) in self.ffted_samples.iter().enumerate().take(fft_len/2 - 1) {
             let mag = complex.norm(); // normalize the magnitudes.
-            if mag > 0.0 {
+            if mag > mag_threshold {
                 min_freq = i as f32 * freq_resolution;
                 break;
             }
@@ -111,7 +112,7 @@ impl FFTOverSamples {
 
         for (i, &complex) in self.ffted_samples.iter().enumerate().take(fft_len/2 - 1).rev() {
             let mag = complex.norm(); // normalize the magnitudes.
-            if mag > 0.0 {
+            if mag > mag_threshold {
                 max_freq =  i as f32 * freq_resolution;
                 break;
             }
