@@ -225,6 +225,13 @@ pub fn get_on_board_boot_button<'a>(esp32: &mut Esp32S3c1, optional_gpio_num: Op
     boot_button_driver
 }
 
+pub fn get_pin_driver_input_button<'a>(esp32: &mut Esp32S3c1, gpio_num: u8) -> PinDriver<'a, AnyIOPin, Input> {
+    let gpio = esp32.gpio_manager.get_gpio_input_output(gpio_num);
+    let mut pin_driver = PinDriver::input(gpio).expect("Failed to get pin driver");
+    pin_driver.set_pull(esp_idf_hal::gpio::Pull::Up).expect("Failed to set pin driver pull");
+    pin_driver
+}
+
 // default on my current dev board (ESP32S3-C1) is 48
 pub fn get_on_board_led_ws2812_driver(esp32: &mut Esp32S3c1, channel_num: u8, optional_gpio_num: Option<u8>) -> Ws2812Esp32RmtDriver {
     let gpio_din_number = optional_gpio_num.unwrap_or(48);
