@@ -6,6 +6,7 @@ use ws2812_esp32_rmt_driver::driver::Ws2812Esp32RmtDriver;
 
 mod esp32s3_hw; // driver wrappers for confirmed working on-board and connected hardware in my setup
 use esp32s3_hw::Esp32S3c1;
+use esp32s3_hw::config::*;
 
 mod audiovisual; // process audio feed and output to led matrix
 use audiovisual::graphics;
@@ -18,11 +19,6 @@ pub enum EqTunerModeEnum {
 
 // Used by the interrupt on the boot button
 static BOOTTON_PRESSED: AtomicBool = AtomicBool::new(false);
-
-/* Current logic for equalizer mode is only made for a situation where the number of frequency bins in eq mode is equal to the number of rows in the ledmatrix (I'm 
-using vertically placed so 32 freq bins). To change that some minor changes in the frequency visualizer are necessary.*/
-pub const LEDS_MAX_X: usize = 8;
-pub const LEDS_MAX_Y: usize = 32;
 
 fn boot_button_callback() {
     BOOTTON_PRESSED.store(true, Ordering::Relaxed);
@@ -38,12 +34,12 @@ struct HwCommander<'a> {
     last_visual_update: SystemTime,
 }
 impl <'a>HwCommander<'a> {
-    fn new(sample_rate:&u32) -> HwCommander<'a> {
+    fn new() -> HwCommander<'a> {
         let mut esp32 = Esp32S3c1::new();
         let audiobuffer = [0u8; 3072]; // buffer for the sound driver
 
-        let audio_driver = esp32s3_hw::get_linejack_i2s_driver(&mut esp32, *sample_rate, 0, 5, 7, 6);        
-        let ledmatrix_driver = esp32s3_hw::get_ws2812ledstrip_driver(&mut esp32, 3, 18);
+        let audio_driver = esp32s3_hw::get_linejack_i2s_driver(&mut esp32, AUDIO_SAMPLE_RATE, AUDIO_IN_I2S, AUDIO_IN_BCLK, AUDIO_IN_DIN, AUDIO_IN_WS);        
+        let ledmatrix_driver = esp32s3_hw::get_ws2812ledstrip_driver(&mut esp32, LEDS_CHANNEL, LEDS_IN);
         
         // set up the mode switch button and set an interrupt on it
         let mut mode_button_driver = esp32s3_hw::get_on_board_boot_button(&mut esp32, None);
@@ -130,10 +126,9 @@ impl FrequalizerMode {
 
 fn main() {
     esp_idf_hal::sys::link_patches();
-    let sample_rate = 48000;
-    let mut hw_commander = HwCommander::new(&sample_rate);
+    let mut hw_commander = HwCommander::new();
     let mut fr_mode = FrequalizerMode::new();
-    let mut audio_processor = AudioProcessor::new(&sample_rate);
+    let mut audio_processor = AudioProcessor::new(AUDIO_SAMPLE_RATE);
     let mut visual_processor = VisualProcessor::new();
 
     /*

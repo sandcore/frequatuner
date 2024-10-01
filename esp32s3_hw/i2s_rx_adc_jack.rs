@@ -19,12 +19,12 @@ pub fn boot_get_driver<'i>(
         let gpio_cfg = StdGpioConfig::new(false,false,false);
         let i2s_std_config = StdConfig::new(channel_cfg, clk_config, slot_config, gpio_cfg);
 
-        let bclk = esp32.gpio_manager.get_gpio(bclk_num);
-        let din = esp32.gpio_manager.get_gpio(din_num);
-        let mclk = AnyIOPin::none(); // don't use
-        let ws = esp32.gpio_manager.get_gpio(ws_num);
+        let bclk = esp32.gpio_manager.get_gpio_input_output(bclk_num);
+        let din = esp32.gpio_manager.get_gpio_input(din_num);
+        let mclk = AnyIOPin::none(); // not used, esp systemclock used
+        let ws = esp32.gpio_manager.get_gpio_input_output(ws_num);
         
-        let i2s_choice = esp32.i2s_manager.get_i2s(i2s_num);
+        let i2s_choice = esp32.i2s_manager.get_i2s_enum(i2s_num);
 
         let mut i2s_driver = match i2s_choice {
             I2sEnum::I2S0(i2s_peripheral) => I2sDriver::new_std_rx(i2s_peripheral, &i2s_std_config, bclk, din, mclk, ws).unwrap(),
