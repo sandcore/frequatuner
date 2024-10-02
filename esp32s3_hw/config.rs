@@ -16,3 +16,6 @@ pub const AUDIO_IN_WS: u8 = 6;
 pub const AUDIO_IN_I2S: u8 = 0;
 
 pub const AUDIO_SAMPLE_RATE: u32 = 48000;
+
+pub const EXTERNAL_MODE_BUTTON_USE: bool = true;
+pub const EXTERNAL_MODE_BUTTON_GPIO_NUM: u8 = 3;
