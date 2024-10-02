@@ -1,7 +1,5 @@
 use rustfft::{FftPlanner, num_complex::Complex};
 
-use crate::LEDS_MAX_Y;
-
 /* 
 An audio buffer is taken, an FFT transform is done, the FFT is distributed over a fixed number of bins.
 
