@@ -32,6 +32,7 @@ Currently not supporting driver shutdown / returning resources as I don't need i
 pub struct Esp32S3c1{
     gpio_manager: GpioManager,
     i2s_manager: I2sManager,
+    adc_manager: ADCManager,
     modem: Modem,
 }
 
@@ -40,14 +41,20 @@ impl Esp32S3c1 {
         let mut i2s_hashmap = HashMap::new();    
         i2s_hashmap.insert(0, I2sEnum::I2S0(periphs.i2s0));
         i2s_hashmap.insert(1, I2sEnum::I2S1(periphs.i2s1));
+        
+        let mut adc_hashmap = HashMap::new();    
+        adc_hashmap.insert(1, ADCEnum::ADC1(periphs.adc1));
+        adc_hashmap.insert(2, ADCEnum::ADC2(periphs.adc2));
 
         let modem = periphs.modem;
         let i2s_manager = I2sManager{i2s_hashmap};
+        let adc_manager = ADCManager{adc_hashmap};
         let gpio_manager= GpioManager::new(periphs.pins);
 
         Esp32S3c1 {
             gpio_manager,
             i2s_manager,
+            adc_manager,
             modem
         }
     }
@@ -67,6 +74,22 @@ impl I2sManager {
 pub enum I2sEnum {
     I2S0(I2S0),
     I2S1(I2S1)
+}
+
+struct ADCManager {
+    adc_hashmap: HashMap<u8, ADCEnum>
+}
+
+impl ADCManager {
+    // consume the adc from hashmap and return it.
+    fn get_adc_enum(&mut self, num: u8) -> ADCEnum {
+        self.adc_hashmap.remove(&num).unwrap()
+    }
+}
+
+pub enum ADCEnum {
+    ADC1(ADC1),
+    ADC2(ADC2)
 }
 
 struct GpioManager {
@@ -272,17 +295,194 @@ pub fn get_linejack_i2s_driver<'a>(
         i2s_rx_adc_jack::boot_get_driver(esp32, sample_rate, i2s_num, bclk_num, din_num, ws_num)
 }
 
-pub fn adc_driver_getter<'d, T, M>(esp32: Esp32S3c1) ->
- AdcChannelDriver<'d, T, M>
- where
-    T: ADCPin,
-    M: Borrow<AdcDriver<'d, T::Adc>>,
+
+//        println!("ADC value: {}", adc_driver.read(&mut adc_channel)?);
+
+
+use esp_idf_sys::*;
+pub trait AdcChannelWrap{
+    fn read(&mut self) -> Result<u16, EspError>;
+}
+
+impl <'a, G, A>AdcChannelWrap for AdcChannelDriver<'a, G, A>
+where
+G: ADCPin,
+A: Borrow<AdcDriver<'a, G::Adc>>
+{
+    fn read(&mut self) -> Result<u16, EspError> {
+        self.read()
+    }
+}
+
+
+pub fn adc_driver_getter<'d>(esp32: &mut Esp32S3c1, gpio_num: u8) -> Box<dyn AdcChannelWrap>
+{   
+    if (1..=10).contains(&gpio_num) {
+        get_adc1_driver(esp32, gpio_num)
+    }
+    else if (11..=20).contains(&gpio_num) {
+        get_adc2_driver(esp32, gpio_num)
+    }
+    else {
+        panic!("Not a pin with ADC capabilities")
+    }
+}
+
+pub fn get_adc1_driver<'a>(esp32: &mut Esp32S3c1, gpio_num: u8) -> Box<dyn AdcChannelWrap + 'a>
+ {
+    let config = AdcChannelConfig {
+        attenuation: DB_11,
+        calibration: true,
+        ..Default::default()
+    };
+    let adc_choice = esp32.adc_manager.get_adc_enum(1);
+    match adc_choice {
+        ADCEnum::ADC1(adc) => {
+            let adc_driver = AdcDriver::new(adc).unwrap();
+            seq!(N in 1..=10 {
+                match gpio_num {
+                    #(
+                    N => {
+                        let gpio = esp32.gpio_manager.gpio~N.take().unwrap();
+                        Box::new(AdcChannelDriver::new(adc_driver, gpio, &config).unwrap())
+                    }
+                    )* 
+                    _ => panic!("Invalid GPIO num")
+                }
+            })
+        },
+        _ => {
+            panic!("ADC not available for chosen pin")
+        }
+    }
+}
+pub fn get_adc2_driver<'a>(esp32: &mut Esp32S3c1, gpio_num: u8) -> Box<dyn AdcChannelWrap + 'a>
+ {
+    let config = AdcChannelConfig {
+        attenuation: DB_11,
+        calibration: true,
+        ..Default::default()
+    };
+    let adc_choice = esp32.adc_manager.get_adc_enum(2);
+    match adc_choice {
+        ADCEnum::ADC2(adc) => {
+            let adc_driver = AdcDriver::new(adc).unwrap();
+            seq!(N in 11..=20 {
+                match gpio_num {
+                    #(
+                    N => {
+                        let gpio = esp32.gpio_manager.gpio~N.take().unwrap();
+                        Box::new(AdcChannelDriver::new(adc_driver, gpio, &config).unwrap())
+                    }
+                    )* 
+                    _ => panic!("Invalid GPIO num")
+                }
+            })
+        },
+        _ => {
+            panic!("ADC not available for chosen pin")
+        }
+    }
+}
+/* 
+pub fn get_driver_3<'a, A: Adc>(esp32: &mut Esp32S3c1, gpio_num: u8, adc_driver: AdcDriver<'a, A>) -> Box<dyn AdcChannelWrap + 'a>
+ {
+    let config = AdcChannelConfig {
+        attenuation: DB_11,
+        calibration: true,
+        ..Default::default()
+    };
+    seq!(N in 11..=20 {
+    match gpio_num {
+        #(
+        N => {
+            let gpio = esp32.gpio_manager.gpio~N.take().unwrap();
+            Box::new(AdcChannelDriver::new(adc_driver, gpio, &config).unwrap())
+        }
+        )* 
+        _ => panic!("Invalid GPIO num")
+    }
+    })
+}
+*/
+
+/*
+pub fn adc_driver_getter<'d>(esp32: &mut Esp32S3c1) -> Box<dyn AdcChannelWrap>
 {
     let config = AdcChannelConfig {
         attenuation: DB_11,
         calibration: true,
         ..Default::default()
     };
-    let adc_choice = Esp32S3c1.adc
-    AdcChannelDriver::new(adc, gpio, &config).unwrap()
+
+    let gpio = esp32.gpio_manager.gpio8.take().unwrap();
+    let adc_choice = esp32.adc_manager.get_adc_enum(1);
+    match adc_choice {
+        ADCEnum::ADC1(adc) => {
+            let adc_driver = AdcDriver::new(adc).unwrap();
+            if (1..=10).contains(&gpio.pin()) {
+                return get_adc_driver(adc_driver, gpio, &config)
+            }
+            else {
+                panic!("Invalid gpio for chosen adc");
+            }
+        },
+        ADCEnum::ADC2(adc) => {
+            let adc_driver = AdcDriver::new(adc).unwrap(); 
+            if (11..=20).contains(&gpio.pin()) {
+                return get_adc_driver(adc_driver, gpio, &config)
+            }
+            else {
+                panic!("Invalid gpio for chosen adc");
+            }
+        }
+    }
 }
+
+pub fn get_adc_driver<'a, T>(adc_driver: AdcDriver<'a, T::Adc>, gpio: impl Peripheral<P=T> + 'a, config: &'a AdcChannelConfig) -> Box<dyn AdcChannelWrap + 'a>
+where 
+T: ADCPin
+ {
+    Box::new(AdcChannelDriver::new(adc_driver, gpio, &config).unwrap())
+}*/
+
+/*
+pub fn adc_driver_getter<'d>(esp32: &mut Esp32S3c1) -> Box<dyn AdcChannelWrap>
+{
+    let config = AdcChannelConfig {
+        attenuation: DB_11,
+        calibration: true,
+        ..Default::default()
+    };
+
+    let gpio = esp32.gpio_manager.gpio8.take().unwrap();
+    let adc_choice = esp32.adc_manager.get_adc_enum(1);
+    match adc_choice {
+        ADCEnum::ADC1(adc) => {
+            let adc_driver = AdcDriver::new(adc).unwrap();
+            if (1..=10).contains(&gpio.pin()) {
+                return get_adc_driver(adc_driver, gpio, &config)
+            }
+            else {
+                panic!("Invalid gpio for chosen adc");
+            }
+        },
+        ADCEnum::ADC2(adc) => {
+            let adc_driver = AdcDriver::new(adc).unwrap(); 
+            if (11..=20).contains(&gpio.pin()) {
+                return get_adc_driver(adc_driver, gpio, &config)
+            }
+            else {
+                panic!("Invalid gpio for chosen adc");
+            }
+        }
+    }
+}
+
+pub fn get_adc_driver <'a, T>(adc_driver: AdcDriver<'a, T::Adc>, gpio: impl Peripheral<P=T> + 'a, config: &'a AdcChannelConfig) -> Box<dyn AdcChannelWrap + 'a>
+where 
+T: ADCPin
+ {
+    Box::new(AdcChannelDriver::new(adc_driver, gpio, &config).unwrap())
+}
+    */
