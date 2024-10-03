@@ -1,7 +1,8 @@
 use std::collections::HashMap;
+use std::borrow::Borrow;
 
-use esp_idf_hal::{
-    gpio::*, i2s::*, prelude::Peripherals, modem::Modem
+use esp_idf_hal::{adc::{*, attenuation::*},
+    adc::oneshot::{*, config::AdcChannelConfig}, gpio::*, i2s::*, modem::Modem, peripheral::Peripheral, prelude::Peripherals
 };
 use esp_idf_svc::wifi::EspWifi;
 use ws2812_esp32_rmt_driver::driver::Ws2812Esp32RmtDriver;
@@ -35,9 +36,7 @@ pub struct Esp32S3c1{
 }
 
 impl Esp32S3c1 {
-    pub fn new() -> Self {
-        let periphs = Peripherals::take().unwrap();
-
+    pub fn new(periphs: Peripherals) -> Self {
         let mut i2s_hashmap = HashMap::new();    
         i2s_hashmap.insert(0, I2sEnum::I2S0(periphs.i2s0));
         i2s_hashmap.insert(1, I2sEnum::I2S1(periphs.i2s1));
@@ -271,4 +270,19 @@ pub fn get_linejack_i2s_driver<'a>(
     ws_num: u8
     ) -> I2sDriver<'a, I2sRx> {
         i2s_rx_adc_jack::boot_get_driver(esp32, sample_rate, i2s_num, bclk_num, din_num, ws_num)
+}
+
+pub fn adc_driver_getter<'d, T, M>(esp32: Esp32S3c1) ->
+ AdcChannelDriver<'d, T, M>
+ where
+    T: ADCPin,
+    M: Borrow<AdcDriver<'d, T::Adc>>,
+{
+    let config = AdcChannelConfig {
+        attenuation: DB_11,
+        calibration: true,
+        ..Default::default()
+    };
+    let adc_choice = Esp32S3c1.adc
+    AdcChannelDriver::new(adc, gpio, &config).unwrap()
 }

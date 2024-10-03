@@ -1,7 +1,12 @@
+use std::ops::Add;
 use std::sync::atomic::{AtomicBool, Ordering}; // for the interrupt handling
 use std::time::{Duration, SystemTime};
+use std::borrow::Borrow;
 
-use esp_idf_hal::{delay::FreeRtos, gpio::{PinDriver, AnyIOPin, Input}, i2s::{I2sDriver, I2sRx}};
+use esp_idf_hal::adc::oneshot::{*, config::*};
+use esp_idf_hal::adc::{*, attenuation::*, Adc};
+use esp_idf_hal::peripheral::Peripheral;
+use esp_idf_hal::{delay::FreeRtos, gpio::{PinDriver, AnyIOPin, Input, *}, i2s::{I2sDriver, I2sRx}, peripherals::*};
 use ws2812_esp32_rmt_driver::driver::Ws2812Esp32RmtDriver;
 
 mod esp32s3_hw; // driver wrappers for confirmed working on-board and connected hardware in my setup
@@ -19,21 +24,35 @@ fn boot_button_callback() {
     BOOTTON_PRESSED.store(true, Ordering::Relaxed);
 }
 
+trait AdcChannelWrap {
+}
+impl <'a, G, A>AdcChannelWrap for AdcChannelDriver<'a, G, A>
+where
+G: ADCPin,
+A: Borrow<AdcDriver<'a, G::Adc>>
+{}
+
 // Manages setup of, and direct interactions with, hardware drivers
-struct HwCommander<'a> {
+struct HwCommander<'a>
+{
     audiobuffer: [u8; 3072],
     audio_driver: I2sDriver<'a, I2sRx>,
     ledmatrix_driver: Ws2812Esp32RmtDriver,
     mode_button_driver: PinDriver<'a, AnyIOPin, Input>,
+    gain_button_driver: Box<dyn AdcChannelWrap>,
     frame_duration: Duration, // ledmatrix starts glitching if this is too short 
     last_visual_update: SystemTime,
 }
-impl <'a>HwCommander<'a> {
-    fn new() -> HwCommander<'a> {
-        let mut esp32 = Esp32S3c1::new();
-        let audiobuffer = [0u8; 3072]; // buffer for the sound driver
 
-        let audio_driver = esp32s3_hw::get_linejack_i2s_driver(&mut esp32, AUDIO_SAMPLE_RATE, AUDIO_IN_I2S, AUDIO_IN_BCLK, AUDIO_IN_DIN, AUDIO_IN_WS);        
+impl <'a>HwCommander<'a>
+{
+    fn new() -> HwCommander<'a> {
+        let periphs = Peripherals::take().unwrap();
+        let mut esp32 = Esp32S3c1::new(periphs);
+
+        let audiobuffer = [0u8; 3072]; // buffer for the sound driver
+        let audio_driver = esp32s3_hw::get_linejack_i2s_driver(&mut esp32, AUDIO_SAMPLE_RATE, AUDIO_IN_I2S, AUDIO_IN_BCLK, AUDIO_IN_DIN, AUDIO_IN_WS);    
+
         let ledmatrix_driver = esp32s3_hw::get_ws2812ledstrip_driver(&mut esp32, LEDS_CHANNEL, LEDS_IN);
         
         let mut mode_button_driver = if EXTERNAL_MODE_BUTTON_USE {
@@ -42,17 +61,21 @@ impl <'a>HwCommander<'a> {
         else {
             esp32s3_hw::get_pin_driver_input_button(&mut esp32, EXTERNAL_MODE_BUTTON_GPIO_NUM)
         };
+
         mode_button_driver.set_interrupt_type(esp_idf_hal::gpio::InterruptType::NegEdge).ok();
         unsafe {
             mode_button_driver.subscribe(boot_button_callback).expect("Interrupt subscribe failed");
         }
         mode_button_driver.enable_interrupt().ok();
 
+        let gain_button_driver = Box::new(esp32s3_hw::adc_driver_getter());
+
         HwCommander {
             audiobuffer,
             audio_driver,
             ledmatrix_driver,
-            mode_button_driver: mode_button_driver,
+            mode_button_driver,
+            gain_button_driver,
             frame_duration: Duration::from_micros(50000), // 20 fps is more than enough. Won't be exact due to execution times
             last_visual_update: SystemTime::now(),
         }
@@ -130,6 +153,7 @@ pub enum EqTunerModeEnum {
 
 fn main() {
     esp_idf_hal::sys::link_patches();
+
     let mut hw_commander = HwCommander::new();
     let mut fr_mode = FrequalizerMode::new();
     let mut audio_processor = AudioProcessor::new(AUDIO_SAMPLE_RATE);
