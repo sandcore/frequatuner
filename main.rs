@@ -42,10 +42,10 @@ impl <'a>HwCommander<'a>
         let ledmatrix_driver = esp32s3_hw::get_ws2812ledstrip_driver(&mut esp32, LEDS_CHANNEL, LEDS_IN);
         
         let mut mode_button_driver = if EXTERNAL_MODE_BUTTON_USE {
-            esp32s3_hw::get_on_board_boot_button(&mut esp32, None)
+            esp32s3_hw::get_pin_driver_input_button(&mut esp32, EXTERNAL_MODE_BUTTON_GPIO_NUM)
         }
         else {
-            esp32s3_hw::get_pin_driver_input_button(&mut esp32, EXTERNAL_MODE_BUTTON_GPIO_NUM)
+            esp32s3_hw::get_on_board_boot_button(&mut esp32, None)
         };
 
         mode_button_driver.set_interrupt_type(esp_idf_hal::gpio::InterruptType::NegEdge).ok();
