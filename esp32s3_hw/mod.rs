@@ -1,18 +1,15 @@
 use std::collections::HashMap;
-use std::borrow::Borrow;
 
-use esp_idf_hal::{adc::{*, attenuation::*},
-    adc::oneshot::{*, config::AdcChannelConfig}, gpio::*, i2s::*, modem::Modem, prelude::Peripherals
-};
-use esp_idf_sys::*;
+use esp_idf_hal::{gpio::*, i2s::*, adc::*, modem::Modem, prelude::Peripherals};
 use esp_idf_svc::wifi::EspWifi;
 use ws2812_esp32_rmt_driver::driver::Ws2812Esp32RmtDriver;
 
 mod i2s_rx_mems_mic;
 mod i2s_rx_adc_jack;
 mod esp32s3_wifi;
+mod adc_channel_driver;
+pub use adc_channel_driver::AdcChannelWrap;
 pub mod config;
-
 // macro crate used for gpio retrieval
 use seq_macro::seq;
 
@@ -20,7 +17,7 @@ use seq_macro::seq;
 Module serves as an overview of available (and proven to work) drivers+configurations for my situation as well as instantiation of drivers.
 
 Struct Esp32S3c1 is a wrapper for the motherboard and uniform access to periphs based on number. It also shows which esp32 input/output facilities are 
-currently in play in this project (gpios, i2s, modem, boot button) and keeps track of available gpios and i2s entries.
+currently in play in my projects (gpios, i2s, adc, modem, boot button) and keeps track of available gpios, i2s and adc entries.
 
 Mems mic and ac2 jack currently have different configurations (currently only the mclk multiple which is M512 for jack) and have been fiddled with extensively in the past. Separate boot files for those make future fiddling with
 config settings per audio device possible. According to its docs the MEMS mic has a 24 bit datawidth but that doesn't work.
@@ -296,92 +293,10 @@ pub fn get_linejack_i2s_driver<'a>(
         i2s_rx_adc_jack::boot_get_driver(esp32, sample_rate, i2s_num, bclk_num, din_num, ws_num)
 }
 
-
-//        println!("ADC value: {}", adc_driver.read(&mut adc_channel)?);
-
-
-
-pub trait AdcChannelWrap{
-    fn read(&mut self) -> Result<u16, EspError>;
-}
-
-impl <'a, G, A>AdcChannelWrap for AdcChannelDriver<'a, G, A>
-where
-G: ADCPin,
-A: Borrow<AdcDriver<'a, G::Adc>>
-{
-    fn read(&mut self) -> Result<u16, EspError> {
-        self.read()
-    }
-}
-
-
-pub fn adc_driver_getter<'d>(esp32: &mut Esp32S3c1, gpio_num: u8) -> Box<dyn AdcChannelWrap>
-{   
-    if (1..=10).contains(&gpio_num) {
-        get_adc1_driver(esp32, gpio_num)
-    }
-    else if (11..=20).contains(&gpio_num) {
-        get_adc2_driver(esp32, gpio_num)
-    }
-    else {
-        panic!("Not a pin with ADC capabilities")
-    }
-}
-
-pub fn get_adc1_driver<'a>(esp32: &mut Esp32S3c1, gpio_num: u8) -> Box<dyn AdcChannelWrap + 'a>
- {
-    let config = AdcChannelConfig {
-        attenuation: DB_11,
-        calibration: true,
-        ..Default::default()
-    };
-    let adc_choice = esp32.adc_manager.get_adc_enum(1);
-    match adc_choice {
-        ADCEnum::ADC1(adc) => {
-            let adc_driver = AdcDriver::new(adc).unwrap();
-            seq!(N in 1..=10 {
-                match gpio_num {
-                    #(
-                    N => {
-                        let gpio = esp32.gpio_manager.gpio~N.take().unwrap();
-                        Box::new(AdcChannelDriver::new(adc_driver, gpio, &config).unwrap())
-                    }
-                    )* 
-                    _ => panic!("Invalid GPIO num")
-                }
-            })
-        },
-        _ => {
-            panic!("ADC not available for chosen pin")
-        }
-    }
-}
-pub fn get_adc2_driver<'a>(esp32: &mut Esp32S3c1, gpio_num: u8) -> Box<dyn AdcChannelWrap + 'a>
- {
-    let config = AdcChannelConfig {
-        attenuation: DB_11,
-        calibration: true,
-        ..Default::default()
-    };
-    let adc_choice = esp32.adc_manager.get_adc_enum(2);
-    match adc_choice {
-        ADCEnum::ADC2(adc) => {
-            let adc_driver = AdcDriver::new(adc).unwrap();
-            seq!(N in 11..=20 {
-                match gpio_num {
-                    #(
-                    N => {
-                        let gpio = esp32.gpio_manager.gpio~N.take().unwrap();
-                        Box::new(AdcChannelDriver::new(adc_driver, gpio, &config).unwrap())
-                    }
-                    )* 
-                    _ => panic!("Invalid GPIO num")
-                }
-            })
-        },
-        _ => {
-            panic!("ADC not available for chosen pin")
-        }
-    }
+// the called function automatically selects the right ADC channel for the selected GPIO pin (for ESP32S3c1)
+pub fn get_adc_channel_driver<'a>(
+    esp32: &mut Esp32S3c1,
+    gpio_num: u8
+)  -> Box<dyn AdcChannelWrap> {
+    adc_channel_driver::boot_get_driver(esp32, gpio_num)
 }

@@ -54,7 +54,7 @@ impl <'a>HwCommander<'a>
         }
         mode_button_driver.enable_interrupt().ok();
 
-        let gain_button_driver = esp32s3_hw::adc_driver_getter(&mut esp32, GAIN_KNOB_GPIO);
+        let gain_button_driver = esp32s3_hw::get_adc_channel_driver(&mut esp32, GAIN_KNOB_GPIO);
 
         HwCommander {
             audiobuffer,
