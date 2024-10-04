@@ -1,12 +1,7 @@
-use std::ops::Add;
 use std::sync::atomic::{AtomicBool, Ordering}; // for the interrupt handling
 use std::time::{Duration, SystemTime};
-use std::borrow::Borrow;
 
-use esp_idf_hal::adc::oneshot::{*, config::*};
-use esp_idf_hal::adc::{*, attenuation::*, Adc};
-use esp_idf_hal::peripheral::Peripheral;
-use esp_idf_hal::{delay::FreeRtos, gpio::{PinDriver, AnyIOPin, Input, *}, i2s::{I2sDriver, I2sRx}, peripherals::*};
+use esp_idf_hal::{delay::FreeRtos, gpio::{PinDriver, AnyIOPin, Input}, i2s::{I2sDriver, I2sRx}, peripherals::*};
 use ws2812_esp32_rmt_driver::driver::Ws2812Esp32RmtDriver;
 
 mod esp32s3_hw; // driver wrappers for confirmed working on-board and connected hardware in my setup
@@ -59,7 +54,7 @@ impl <'a>HwCommander<'a>
         }
         mode_button_driver.enable_interrupt().ok();
 
-        let gain_button_driver = esp32s3_hw::adc_driver_getter(&mut esp32);
+        let gain_button_driver = esp32s3_hw::adc_driver_getter(&mut esp32, GAIN_KNOB_GPIO);
 
         HwCommander {
             audiobuffer,

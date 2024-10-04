@@ -19,3 +19,5 @@ pub const AUDIO_SAMPLE_RATE: u32 = 48000;
 
 pub const EXTERNAL_MODE_BUTTON_USE: bool = true;
 pub const EXTERNAL_MODE_BUTTON_GPIO_NUM: u8 = 3;
+
+pub const GAIN_KNOB_GPIO: u8 = 16;

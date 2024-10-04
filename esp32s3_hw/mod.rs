@@ -2,8 +2,9 @@ use std::collections::HashMap;
 use std::borrow::Borrow;
 
 use esp_idf_hal::{adc::{*, attenuation::*},
-    adc::oneshot::{*, config::AdcChannelConfig}, gpio::*, i2s::*, modem::Modem, peripheral::Peripheral, prelude::Peripherals
+    adc::oneshot::{*, config::AdcChannelConfig}, gpio::*, i2s::*, modem::Modem, prelude::Peripherals
 };
+use esp_idf_sys::*;
 use esp_idf_svc::wifi::EspWifi;
 use ws2812_esp32_rmt_driver::driver::Ws2812Esp32RmtDriver;
 
@@ -299,7 +300,7 @@ pub fn get_linejack_i2s_driver<'a>(
 //        println!("ADC value: {}", adc_driver.read(&mut adc_channel)?);
 
 
-use esp_idf_sys::*;
+
 pub trait AdcChannelWrap{
     fn read(&mut self) -> Result<u16, EspError>;
 }
@@ -384,105 +385,3 @@ pub fn get_adc2_driver<'a>(esp32: &mut Esp32S3c1, gpio_num: u8) -> Box<dyn AdcCh
         }
     }
 }
-/* 
-pub fn get_driver_3<'a, A: Adc>(esp32: &mut Esp32S3c1, gpio_num: u8, adc_driver: AdcDriver<'a, A>) -> Box<dyn AdcChannelWrap + 'a>
- {
-    let config = AdcChannelConfig {
-        attenuation: DB_11,
-        calibration: true,
-        ..Default::default()
-    };
-    seq!(N in 11..=20 {
-    match gpio_num {
-        #(
-        N => {
-            let gpio = esp32.gpio_manager.gpio~N.take().unwrap();
-            Box::new(AdcChannelDriver::new(adc_driver, gpio, &config).unwrap())
-        }
-        )* 
-        _ => panic!("Invalid GPIO num")
-    }
-    })
-}
-*/
-
-/*
-pub fn adc_driver_getter<'d>(esp32: &mut Esp32S3c1) -> Box<dyn AdcChannelWrap>
-{
-    let config = AdcChannelConfig {
-        attenuation: DB_11,
-        calibration: true,
-        ..Default::default()
-    };
-
-    let gpio = esp32.gpio_manager.gpio8.take().unwrap();
-    let adc_choice = esp32.adc_manager.get_adc_enum(1);
-    match adc_choice {
-        ADCEnum::ADC1(adc) => {
-            let adc_driver = AdcDriver::new(adc).unwrap();
-            if (1..=10).contains(&gpio.pin()) {
-                return get_adc_driver(adc_driver, gpio, &config)
-            }
-            else {
-                panic!("Invalid gpio for chosen adc");
-            }
-        },
-        ADCEnum::ADC2(adc) => {
-            let adc_driver = AdcDriver::new(adc).unwrap(); 
-            if (11..=20).contains(&gpio.pin()) {
-                return get_adc_driver(adc_driver, gpio, &config)
-            }
-            else {
-                panic!("Invalid gpio for chosen adc");
-            }
-        }
-    }
-}
-
-pub fn get_adc_driver<'a, T>(adc_driver: AdcDriver<'a, T::Adc>, gpio: impl Peripheral<P=T> + 'a, config: &'a AdcChannelConfig) -> Box<dyn AdcChannelWrap + 'a>
-where 
-T: ADCPin
- {
-    Box::new(AdcChannelDriver::new(adc_driver, gpio, &config).unwrap())
-}*/
-
-/*
-pub fn adc_driver_getter<'d>(esp32: &mut Esp32S3c1) -> Box<dyn AdcChannelWrap>
-{
-    let config = AdcChannelConfig {
-        attenuation: DB_11,
-        calibration: true,
-        ..Default::default()
-    };
-
-    let gpio = esp32.gpio_manager.gpio8.take().unwrap();
-    let adc_choice = esp32.adc_manager.get_adc_enum(1);
-    match adc_choice {
-        ADCEnum::ADC1(adc) => {
-            let adc_driver = AdcDriver::new(adc).unwrap();
-            if (1..=10).contains(&gpio.pin()) {
-                return get_adc_driver(adc_driver, gpio, &config)
-            }
-            else {
-                panic!("Invalid gpio for chosen adc");
-            }
-        },
-        ADCEnum::ADC2(adc) => {
-            let adc_driver = AdcDriver::new(adc).unwrap(); 
-            if (11..=20).contains(&gpio.pin()) {
-                return get_adc_driver(adc_driver, gpio, &config)
-            }
-            else {
-                panic!("Invalid gpio for chosen adc");
-            }
-        }
-    }
-}
-
-pub fn get_adc_driver <'a, T>(adc_driver: AdcDriver<'a, T::Adc>, gpio: impl Peripheral<P=T> + 'a, config: &'a AdcChannelConfig) -> Box<dyn AdcChannelWrap + 'a>
-where 
-T: ADCPin
- {
-    Box::new(AdcChannelDriver::new(adc_driver, gpio, &config).unwrap())
-}
-    */
