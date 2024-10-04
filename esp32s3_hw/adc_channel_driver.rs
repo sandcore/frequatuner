@@ -7,6 +7,8 @@ use super::{Esp32S3c1, ADCEnum};
 
 use seq_macro::seq;
 
+
+// AdcChannelDriver is for a specific GPIO instance and ADC instance, need to wrap that in order to output it dynamically and save into struct in main
 pub trait AdcChannelWrap{
     fn read(&mut self) -> Result<u16, EspError>;
 }
@@ -21,6 +23,8 @@ A: Borrow<AdcDriver<'a, G::Adc>>
     }
 }
 
+// Can't use esp32hw's gpiomanager because that downcasts the GPIO specific types and loses info about supported ADC channel
+// So used a big match statement. Because gpio_num is a const it should compile down to a single execution line anyway, I assume.
 pub fn boot_get_driver<'d>(esp32: &mut Esp32S3c1, gpio_num: u8) -> Box<dyn AdcChannelWrap>
 {   
     let config = AdcChannelConfig {
