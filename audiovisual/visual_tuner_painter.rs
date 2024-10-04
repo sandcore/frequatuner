@@ -3,8 +3,7 @@ use super::graphics::*;
 use crate::{LEDS_MAX_X, LEDS_MAX_Y};
 
 /*
-Based on a NoteDetectionResult from pitch_detector crate. One future refactor might be to keep an enum of interface elements so their types can be passed around easily and checked, 
-and interface elements are structs and keep their offsets and colors stored in there. Would be better when interface gets more complex, overkill for current goals.
+Based on a NoteDetectionResult from pitch_detector crate. 
       
 pub struct NoteDetectionResult 
     /// The predominant frequency detected from a signal.
