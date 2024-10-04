@@ -46,9 +46,7 @@ pub fn boot_get_driver<'d>(esp32: &mut Esp32S3c1, gpio_num: u8) -> Box<dyn AdcCh
                     }
                 })
             },
-            _ => {
-                panic!("ADC not available for chosen pin")
-            }
+            _ => panic!("ADC not available for chosen pin")
         }
     }
     else if (11..=20).contains(&gpio_num) {
@@ -68,9 +66,7 @@ pub fn boot_get_driver<'d>(esp32: &mut Esp32S3c1, gpio_num: u8) -> Box<dyn AdcCh
                     }
                 })
             },
-            _ => {
-                panic!("ADC not available for chosen pin")
-            }
+            _ => panic!("ADC not available for chosen pin")
         }
     }
     else {
