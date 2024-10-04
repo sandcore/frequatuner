@@ -88,7 +88,6 @@ impl RawBuffer {
 
         FFTOverSamples{ffted_samples: output_vec}
     }
-
 }
 
 impl FFTOverSamples {
@@ -136,6 +135,7 @@ impl FFTOverSamples {
         }
     }
 }
+
 impl AdaptedEdges{
     fn distribute_fft_to_fixed_bins(self, res_edges: &mut AdaptiveResultEdges) -> FFTResultBins {
         let mut result = vec![0.0; res_edges.edges.len() - 1];
@@ -194,7 +194,6 @@ impl NormalizedFFTResultBins {
         self.bins[1..(self.bins.len()-1)].to_vec()
     }
 }
-
 
 // Adaptive result bins: based on the frequency ranges adjust the bins slowly to the measured range.
 struct AdaptiveResultEdges {
